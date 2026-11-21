@@ -1,0 +1,6 @@
+Django>=5.2,<6.1
+djangorestframework>=3.16
+python-dotenv>=1.0
+whitenoise>=6.7
+# PostgreSQL driver - only used when DB_ENGINE=postgres in .env
+psycopg[binary]>=3.2

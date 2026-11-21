@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load polar_tags %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if list_url %}<a class="back-link" href="{{ list_url }}"><i class="bi bi-arrow-left"></i> Back to list</a>{% endif %}
+    <div class="eyebrow">{{ verbose_name|capfirst }}</div>
+    <h1>{{ title }}</h1>
+  </div>
+  <div class="page-actions">
+    {% if edit_name %}<a class="btn btn-primary" href="{% url edit_name object.pk %}"><i class="bi bi-pencil me-1"></i>Edit</a>{% endif %}
+  </div>
+</div>
+
+<div class="panel p-4">
+  <div class="row detail-grid">
+    {% object_fields object badge_fields exclude_fields as rows %}
+    {% for label, value, wide in rows %}
+      <div class="{% if wide %}col-12{% else %}col-sm-6 col-xl-4{% endif %} detail-item">
+        <div class="detail-label">{{ label }}</div>
+        <div class="detail-value">{{ value }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% for block in related_blocks %}
+<div class="panel mt-4">
+  <div class="panel-head">
+    <h2>{{ block.title }}</h2>
+    {% if block.add_url %}<a class="btn btn-sm btn-primary" href="{{ block.add_url }}"><i class="bi bi-plus-lg"></i> Add</a>{% endif %}
+  </div>
+  <div class="table-responsive">
+    <table class="table data-table align-middle mb-0">
+      <thead><tr>{% for label, acc in block.columns %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in block.rows %}
+          <tr>{% for label, acc in block.columns %}<td>{% if forloop.first and row.get_absolute_url %}{% cell row acc block.badge_fields row.get_absolute_url %}{% else %}{% cell row acc block.badge_fields %}{% endif %}</td>{% endfor %}</tr>
+        {% empty %}
+          <tr><td colspan="20" class="text-muted text-center py-4">Nothing recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

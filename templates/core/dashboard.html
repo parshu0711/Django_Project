@@ -1,0 +1,178 @@
+{% extends "base.html" %}{% load polar_tags static %}
+{% block title %}Command dashboard{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+{% block content %}
+<section class="hero-band">
+  <div class="hero-inner">
+    <div>
+      <span class="eyebrow"><i class="bi bi-speedometer2 me-1"></i>Command dashboard</span>
+      <h1>{{ greeting }}, {{ user.first_name|default:user.username }}</h1>
+      <p>Live status of {% if user.is_hq %}all Indian Antarctic stations{% else %}{{ user.station.name|default:"your station" }}{% endif %}.
+        <span class="live-chip ms-1"><span class="live-dot"></span> updated <span id="live-updated">just now</span></span></p>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-danger" href="{% url 'operations:incident_create' %}"><i class="bi bi-exclamation-octagon me-1"></i>Report incident</a>
+      <a class="btn btn-outline-light" href="{% url 'stations:sitrep_create' %}"><i class="bi bi-journal-plus me-1"></i>New SITREP</a>
+    </div>
+  </div>
+</section>
+
+<div class="kpi-grid">
+  <a class="kpi" href="{% url 'stations:station_list' %}">
+    <div class="kpi-icon bg-blue"><i class="bi bi-geo-alt"></i></div>
+    <div><div class="kpi-value">{{ kpis.stations_active }}<small>/{{ kpis.stations_total }}</small></div><div class="kpi-label">Active stations</div></div>
+  </a>
+  <a class="kpi" href="{% url 'personnel:member_list' %}?status=ON_STATION">
+    <div class="kpi-icon bg-teal"><i class="bi bi-people"></i></div>
+    <div><div class="kpi-value">{{ kpis.crew }}</div><div class="kpi-label">Personnel on ice{% if kpis.in_transit %} · {{ kpis.in_transit }} in transit{% endif %}</div></div>
+  </a>
+  <a class="kpi {% if kpis.serious_incidents %}kpi-alert{% endif %}" href="{% url 'operations:incident_list' %}?open=1">
+    <div class="kpi-icon bg-red"><i class="bi bi-exclamation-triangle"></i></div>
+    <div><div class="kpi-value">{{ kpis.open_incidents }}</div><div class="kpi-label">Open incidents · {{ kpis.serious_incidents }} high/critical</div></div>
+  </a>
+  <a class="kpi" href="{% url 'inventory:item_list' %}?low=1">
+    <div class="kpi-icon bg-amber"><i class="bi bi-box-seam"></i></div>
+    <div><div class="kpi-value">{{ kpis.low_stock }}</div><div class="kpi-label">Low-stock items</div></div>
+  </a>
+  <a class="kpi" href="{% url 'operations:equipment_list' %}?status=FAULTY">
+    <div class="kpi-icon bg-slate"><i class="bi bi-gear"></i></div>
+    <div><div class="kpi-value">{{ kpis.faulty }}</div><div class="kpi-label">Faulty equipment · {{ kpis.open_tasks }} open tasks</div></div>
+  </a>
+  <a class="kpi" href="{% url 'inventory:shipment_list' %}">
+    <div class="kpi-icon bg-violet"><i class="bi bi-truck"></i></div>
+    <div><div class="kpi-value">{{ kpis.shipments }}</div><div class="kpi-label">Shipments en route / planned</div></div>
+  </a>
+</div>
+
+<div class="station-grid">
+  {% for c in cards %}
+  {% with st=c.station w=c.weather p=c.power %}
+  <div class="station-card status-{{ st.status|lower }}">
+    <div class="station-card-head">
+      <div>
+        <a class="station-name" href="{{ st.get_absolute_url }}">{{ st.name }}</a>
+        <div class="station-meta">{{ st.code }} · {{ st.region }}</div>
+      </div>
+      {% if c.sitrep %}<span class="pill pill-{{ c.sitrep.overall_status|badge_colour }}" title="Latest SITREP {{ c.sitrep.report_date }}">{{ c.sitrep.get_overall_status_display }}</span>
+      {% else %}<span class="pill pill-secondary">{{ st.get_status_display }}</span>{% endif %}
+    </div>
+    {% if w or p %}
+    <div class="station-metrics">
+      <div class="metric"><i class="bi bi-thermometer-snow"></i><span data-live="temp-{{ st.pk }}">{{ w.temperature_c|floatformat:1 }}</span><small>°C</small></div>
+      <div class="metric"><i class="bi bi-wind"></i><span data-live="wind-{{ st.pk }}">{{ w.wind_speed_kmh|floatformat:0 }}</span><small>km/h</small></div>
+      <div class="metric"><i class="bi bi-speedometer"></i><span data-live="pressure-{{ st.pk }}">{{ w.pressure_hpa|floatformat:0 }}</span><small>hPa</small></div>
+      <div class="metric"><i class="bi bi-people"></i><span>{{ c.crew }}</span><small>crew</small></div>
+    </div>
+    <div class="gauge-row">
+      <div class="gauge-label"><span>Fuel reserve</span><strong data-live="fuel-{{ st.pk }}">{{ p.fuel_level_pct|floatformat:0 }}%</strong></div>
+      <div class="progress" role="progressbar" aria-label="Fuel reserve"><div class="progress-bar bg-{{ p.fuel_level_pct|pct_class }}" data-live-bar="fuel-{{ st.pk }}" style="width: {{ p.fuel_level_pct|floatformat:0 }}%"></div></div>
+    </div>
+    <div class="gauge-row">
+      <div class="gauge-label"><span>Renewable share</span><strong data-live="renew-{{ st.pk }}">{{ p.renewable_pct|floatformat:0 }}%</strong></div>
+      <div class="progress" role="progressbar" aria-label="Renewable share"><div class="progress-bar bg-info" data-live-bar="renew-{{ st.pk }}" style="width: {{ p.renewable_pct|floatformat:0 }}%"></div></div>
+    </div>
+    <div class="station-foot">
+      <span><i class="bi bi-clock"></i> <span data-live="seen-{{ st.pk }}">{{ w.recorded_at|ago }}</span></span>
+      {% if c.open_incidents %}<a class="text-danger fw-semibold" href="{% url 'operations:incident_list' %}?open=1&station={{ st.pk }}"><i class="bi bi-exclamation-triangle-fill"></i> {{ c.open_incidents }} open</a>
+      {% else %}<span class="text-success"><i class="bi bi-check-circle-fill"></i> No open incidents</span>{% endif %}
+    </div>
+    {% else %}
+    <div class="station-empty">
+      <i class="bi bi-broadcast-pin"></i>
+      <p>No live telemetry. {{ st.get_status_display }}{% if st.established %} · est. {{ st.established }}{% endif %}.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+<div class="row g-4 mt-1">
+  <div class="col-xl-7">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-thermometer-snow"></i>Temperature · last 72 h</h2></div>
+      <div class="chart-box"><canvas id="chart-temp"></canvas></div>
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-map"></i>Station map</h2></div>
+      <div id="station-map" class="map-box"></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-wind"></i>Wind speed · last 72 h</h2><span class="text-muted small">dashed line = alert threshold</span></div>
+      <div class="chart-box"><canvas id="chart-wind"></canvas></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-fuel-pump"></i>Fuel reserve · last 72 h</h2></div>
+      <div class="chart-box"><canvas id="chart-fuel"></canvas></div>
+    </div>
+  </div>
+
+  <div class="col-xl-6">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-exclamation-triangle"></i>Open incidents &amp; alerts</h2><a href="{% url 'operations:incident_list' %}?open=1" class="small">View all</a></div>
+      <ul class="feed">
+        {% for i in recent_incidents %}
+          <li>
+            <span class="pill pill-{{ i.severity|badge_colour:'severity' }}">{{ i.get_severity_display }}</span>
+            <div class="feed-body">
+              <a href="{{ i.get_absolute_url }}" class="fw-semibold">{{ i.title }}</a>
+              <div class="small text-muted">{{ i.station.name }} · {{ i.get_category_display }} · {{ i.reported_at|ago }}{% if i.auto_generated %} · <i class="bi bi-cpu"></i> auto{% endif %}</div>
+            </div>
+            <span class="pill pill-{{ i.status|badge_colour }}">{{ i.get_status_display }}</span>
+          </li>
+        {% empty %}
+          <li class="text-muted">No open incidents. All quiet on the ice.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-box-seam"></i>Low stock</h2><a href="{% url 'inventory:item_list' %}?low=1" class="small">All</a></div>
+      <ul class="feed compact">
+        {% for item in low_stock_items %}
+          <li><div class="feed-body"><a href="{{ item.get_absolute_url }}" class="fw-semibold">{{ item.name }}</a>
+            <div class="small text-muted">{{ item.station.name }} · {{ item.quantity|floatformat:"-2" }} / min {{ item.min_threshold|floatformat:"-2" }} {{ item.unit }}</div></div></li>
+        {% empty %}<li class="text-muted">All stores above minimum.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="panel h-100">
+      <div class="panel-head"><h2><i class="bi bi-truck"></i>Resupply</h2><a href="{% url 'inventory:shipment_list' %}" class="small">All</a></div>
+      <ul class="feed compact">
+        {% for s in shipments %}
+          <li><div class="feed-body"><a href="{{ s.get_absolute_url }}" class="fw-semibold">{{ s.reference }}</a>
+            <div class="small text-muted">{{ s.get_mode_display }} → {{ s.station.name }}<br>ETA {{ s.eta|date:"d M Y"|default:"TBC" }}</div></div>
+            <span class="pill pill-{{ s.status|badge_colour }}">{{ s.get_status_display }}</span></li>
+        {% empty %}<li class="text-muted">No shipments scheduled.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{{ chart_data|json_script:"chart-data" }}
+{{ map_points|json_script:"map-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/polarops.js' %}?v=6"></script>
+<script>
+  const chartData = JSON.parse(document.getElementById("chart-data").textContent);
+  polarLineChart("chart-temp", chartData.temperature, { unit: "°C" });
+  polarLineChart("chart-wind", chartData.wind, { unit: "km/h", threshold: 100 });
+  polarLineChart("chart-fuel", chartData.fuel, { unit: "%", min: 0, max: 100, threshold: 20 });
+  polarStationMap("station-map", JSON.parse(document.getElementById("map-data").textContent));
+  startLivePolling("{% url 'api-live' %}");
+</script>
+{% endblock %}

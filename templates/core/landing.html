@@ -1,0 +1,243 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Remote management for India's Antarctic stations{% endblock %}
+{% block body_class %}landing{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block body %}
+<header class="lp-hero">
+  <div class="lp-aurora" aria-hidden="true"></div>
+  <div class="lp-snow" aria-hidden="true"></div>
+
+  <nav class="navbar navbar-expand-md lp-nav" aria-label="Site">
+    <div class="container lp-container">
+      <a href="{% url 'core:landing' %}" class="brand-link">
+        <span class="brand-mark"><i class="bi bi-snow2"></i></span>
+        <span><span class="brand-name">PolarOps</span><span class="brand-sub">Indian Antarctic Stations</span></span>
+      </a>
+      <button class="navbar-toggler lp-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#lpNav" aria-controls="lpNav" aria-expanded="false" aria-label="Toggle navigation">
+        <i class="bi bi-list"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="lpNav">
+        <ul class="navbar-nav mx-auto">
+          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+          <li class="nav-item"><a class="nav-link" href="#stations">Stations</a></li>
+          <li class="nav-item"><a class="nav-link" href="#how">How it works</a></li>
+          <li class="nav-item"><a class="nav-link" href="#roles">Access</a></li>
+        </ul>
+        {% if user.is_authenticated %}
+          <a class="btn btn-ice" href="{% url 'core:dashboard' %}">Open dashboard <i class="bi bi-arrow-right"></i></a>
+        {% else %}
+          <a class="btn btn-ice" href="{% url 'accounts:login' %}"><i class="bi bi-box-arrow-in-right me-1"></i>Sign in</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <div class="container lp-container lp-hero-body">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="lp-kicker"><span class="live-dot"></span> NCPOR · Ministry of Earth Sciences</span>
+        <h1 class="lp-title">Run India's Antarctic stations <span class="lp-grad">from anywhere.</span></h1>
+        <p class="lp-lead">
+          PolarOps connects headquarters in Goa with the teams at Maitri and Bharati: live weather and
+          power telemetry, automatic blizzard and fuel alerts, crew and medical records, stores, resupply
+          and maintenance, all in one secure place that works over a thin satellite link.
+        </p>
+        <div class="lp-cta">
+          {% if user.is_authenticated %}
+            <a class="btn btn-ice btn-lg" href="{% url 'core:dashboard' %}">Open the command dashboard <i class="bi bi-arrow-right"></i></a>
+          {% else %}
+            <a class="btn btn-ice btn-lg" href="{% url 'accounts:login' %}">Sign in to PolarOps <i class="bi bi-arrow-right"></i></a>
+          {% endif %}
+          <a class="btn btn-ghost btn-lg" href="#features">Explore features</a>
+        </div>
+        <ul class="lp-trust">
+          <li><i class="bi bi-shield-check"></i> Role-based access</li>
+          <li><i class="bi bi-reception-3"></i> Low-bandwidth ready</li>
+          <li><i class="bi bi-plug"></i> Open REST API</li>
+        </ul>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="lp-console">
+          <div class="lp-console-bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span>Station network</span>
+            <span class="ms-auto lp-console-tag">{{ stations|length }} station{{ stations|length|pluralize }}</span>
+          </div>
+          <div class="lp-console-body">
+            {% for s in stations %}
+              <div class="lp-station">
+                <span class="lp-station-icon status-{{ s.status|lower }}"><i class="bi bi-geo-alt-fill"></i></span>
+                <div class="flex-grow-1 min-w-0">
+                  <div class="lp-station-name">{{ s.name }} <span class="lp-code">{{ s.code }}</span></div>
+                  <div class="lp-station-meta">{{ s.region|default:"Antarctica" }}</div>
+                </div>
+                <div class="text-end">
+                  <span class="lp-status status-{{ s.status|lower }}">{{ s.get_status_display }}</span>
+                  <div class="lp-station-meta">{{ s.latitude|floatformat:2 }}°, {{ s.longitude|floatformat:2 }}°{% if s.established %} · est. {{ s.established }}{% endif %}</div>
+                </div>
+              </div>
+            {% empty %}
+              <div class="lp-station-meta text-center py-4">Stations appear here once they are added.</div>
+            {% endfor %}
+          </div>
+          <div class="lp-console-foot">
+            <div><i class="bi bi-cloud-snow"></i><span>Weather</span></div>
+            <div><i class="bi bi-lightning-charge"></i><span>Power</span></div>
+            <div><i class="bi bi-fuel-pump"></i><span>Fuel</span></div>
+            <div><i class="bi bi-people"></i><span>Crew</span></div>
+          </div>
+        </div>
+        <div class="lp-float lp-float-alert">
+          <span class="lp-float-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+          <div><strong>Blizzard warning raised automatically</strong><small>When wind passes the alert limit, HQ is emailed</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container lp-container">
+    <div class="lp-stats">
+      <div><strong>{{ stations|length }}</strong><span>Stations managed</span></div>
+      <div><strong>{{ active_count }}</strong><span>Year-round bases</span></div>
+      <div><strong>5</strong><span>Automatic alert rules</span></div>
+      <div><strong>60 s</strong><span>Dashboard refresh</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="features" class="lp-section">
+    <div class="container lp-container">
+      <div class="lp-section-head">
+        <span class="lp-eyebrow">Everything in one place</span>
+        <h2>Built for life and work at minus forty</h2>
+        <p>Each module replaces an email thread, a spreadsheet or a satellite phone call.</p>
+      </div>
+      <div class="lp-features">
+        <article class="lp-feature"><span class="mega-icon bg-blue"><i class="bi bi-broadcast"></i></span><h3>Live telemetry</h3><p>Temperature, wind, pressure, visibility, generator load, solar, wind power, fuel and battery, charted over 72 hours.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-red"><i class="bi bi-bell"></i></span><h3>Automatic alerts</h3><p>Blizzard, extreme cold, whiteout, low fuel and low battery readings raise incidents and email HQ, with no duplicates.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-teal"><i class="bi bi-journal-text"></i></span><h3>Situation reports</h3><p>Daily green, amber or red SITREPs from every station, with issues and requests to HQ.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-violet"><i class="bi bi-heart-pulse"></i></span><h3>Crew &amp; medical</h3><p>Expedition rosters, who is on station or in the field, and medical checks with fitness for duty.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-amber"><i class="bi bi-box-seam"></i></span><h3>Stores &amp; resupply</h3><p>Fuel, food, medical and spares with low-stock warnings, a full audit trail and ship or air shipments.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-slate"><i class="bi bi-tools"></i></span><h3>Equipment upkeep</h3><p>Service schedules with overdue warnings and maintenance work orders that update the register.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-teal"><i class="bi bi-binoculars"></i></span><h3>Research tracking</h3><p>Projects by discipline and daily field logs of activities, samples and data collected.</p></article>
+        <article class="lp-feature"><span class="mega-icon bg-blue"><i class="bi bi-plug"></i></span><h3>Open REST API</h3><p>Station gateways push sensor data with a token and can upload in bulk after a link outage.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="stations" class="lp-section lp-section-alt">
+    <div class="container lp-container">
+      <div class="row g-4 align-items-stretch">
+        <div class="col-lg-5">
+          <div class="lp-section-head text-start mb-4">
+            <span class="lp-eyebrow">The network</span>
+            <h2>India's stations on the ice</h2>
+            <p>From the Schirmacher Oasis to the Larsemann Hills, every station reports into one HQ view.</p>
+          </div>
+          <div class="lp-station-cards">
+            {% for s in stations %}
+              <div class="lp-station-card status-{{ s.status|lower }}">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <h3>{{ s.name }}</h3>
+                    <div class="lp-muted small">{{ s.region|default:"Antarctica" }}</div>
+                  </div>
+                  <span class="pill pill-{% if s.status == 'ACTIVE' %}success{% elif s.status == 'SEASONAL' %}warning{% else %}secondary{% endif %}">{{ s.get_status_display }}</span>
+                </div>
+                <div class="lp-station-facts">
+                  {% if s.established %}<span><i class="bi bi-calendar3"></i> Est. {{ s.established }}</span>{% endif %}
+                  <span><i class="bi bi-crosshair"></i> {{ s.latitude|floatformat:2 }}°, {{ s.longitude|floatformat:2 }}°</span>
+                  {% if s.capacity_winter %}<span><i class="bi bi-snow"></i> {{ s.capacity_winter }} winter berths</span>{% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="lp-map-wrap"><div id="lp-map" class="lp-map" role="img" aria-label="Map of Indian Antarctic stations"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="lp-section">
+    <div class="container lp-container">
+      <div class="lp-section-head">
+        <span class="lp-eyebrow">How it works</span>
+        <h2>From sensor to decision in three steps</h2>
+      </div>
+      <div class="lp-steps">
+        <div class="lp-step"><span class="lp-step-num">1</span><span class="mega-icon bg-blue"><i class="bi bi-cpu"></i></span><h3>Stations send data</h3><p>A gateway at each station collects automatic weather station and power-plant readings and sends them over VSAT. Readings are buffered while the link is down.</p></div>
+        <div class="lp-step"><span class="lp-step-num">2</span><span class="mega-icon bg-red"><i class="bi bi-shield-exclamation"></i></span><h3>Rules check every reading</h3><p>Alert rules flag blizzards, extreme cold, whiteouts, low fuel and low battery, open an incident and email HQ and the station leader.</p></div>
+        <div class="lp-step"><span class="lp-step-num">3</span><span class="mega-icon bg-teal"><i class="bi bi-display"></i></span><h3>HQ and teams act</h3><p>Everyone works from the same live dashboard: acknowledge incidents, plan resupply, schedule maintenance and file SITREPs.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roles" class="lp-section lp-section-alt">
+    <div class="container lp-container">
+      <div class="row g-5 align-items-center">
+        <div class="col-lg-5">
+          <span class="lp-eyebrow">Secure by design</span>
+          <h2 class="lp-h2">The right view for every role</h2>
+          <p class="lp-muted">Sign-in is required everywhere. Each page and API call is filtered by station, and a sensor token can only write data for its own station.</p>
+          <ul class="lp-checks">
+            <li><i class="bi bi-check-circle-fill"></i> Works on slow satellite links: light pages, one small refresh call a minute</li>
+            <li><i class="bi bi-check-circle-fill"></i> Keeps the last known values when the link drops</li>
+            <li><i class="bi bi-check-circle-fill"></i> CSV export of every list for offline reports</li>
+          </ul>
+        </div>
+        <div class="col-lg-7">
+          <div class="lp-roles">
+            <div class="lp-role"><span class="mega-icon bg-blue"><i class="bi bi-globe-asia-australia"></i></span><div><h3>HQ administrators</h3><p>See and manage every station, expedition and incident.</p></div></div>
+            <div class="lp-role"><span class="mega-icon bg-teal"><i class="bi bi-person-badge"></i></span><div><h3>Station leaders</h3><p>Run their station: SITREPs, crew, stores and incidents.</p></div></div>
+            <div class="lp-role"><span class="mega-icon bg-red"><i class="bi bi-heart-pulse"></i></span><div><h3>Medical officers</h3><p>Record vitals and fitness for duty for their team.</p></div></div>
+            <div class="lp-role"><span class="mega-icon bg-amber"><i class="bi bi-wrench-adjustable"></i></span><div><h3>Engineers &amp; logistics</h3><p>Look after equipment, maintenance, fuel and resupply.</p></div></div>
+            <div class="lp-role"><span class="mega-icon bg-violet"><i class="bi bi-binoculars"></i></span><div><h3>Scientists</h3><p>Track research projects and daily field logs.</p></div></div>
+            <div class="lp-role"><span class="mega-icon bg-slate"><i class="bi bi-cpu"></i></span><div><h3>Sensor gateways</h3><p>Token-only accounts that post readings for one station.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-section">
+    <div class="container lp-container">
+      <div class="lp-final">
+        <div class="lp-aurora" aria-hidden="true"></div>
+        <div class="position-relative">
+          <h2>Ready for today's watch?</h2>
+          <p>Sign in with your NCPOR or station account to open the command dashboard.</p>
+          {% if user.is_authenticated %}
+            <a class="btn btn-ice btn-lg" href="{% url 'core:dashboard' %}">Open dashboard <i class="bi bi-arrow-right"></i></a>
+          {% else %}
+            <a class="btn btn-ice btn-lg" href="{% url 'accounts:login' %}">Sign in <i class="bi bi-arrow-right"></i></a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="lp-footer">
+  <div class="container lp-container">
+    <div class="brand-link"><span class="brand-mark"><i class="bi bi-snow2"></i></span><span><span class="brand-name">PolarOps</span><span class="brand-sub">Indian Antarctic Stations</span></span></div>
+    <p>A digital platform for remote management of the Indian Antarctic research stations.<br>Station names and coordinates are public information.</p>
+  </div>
+</footer>
+
+{{ map_points|json_script:"map-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/polarops.js' %}?v=6"></script>
+<script>
+  polarStationMap("lp-map", JSON.parse(document.getElementById("map-data").textContent));
+</script>
+{% endblock %}
