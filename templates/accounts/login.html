@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block anonymous %}
+<div class="login-page">
+  <div class="login-hero">
+    <div class="lp-aurora" aria-hidden="true"></div>
+    <div class="lp-snow" aria-hidden="true"></div>
+    <a class="login-home" href="{% url 'core:landing' %}"><i class="bi bi-arrow-left me-1"></i>Back to home</a>
+    <div class="brand-mark lg"><i class="bi bi-snow2"></i></div>
+    <h1>PolarOps</h1>
+    <p>Digital platform for remote management of the Indian Antarctic research stations: Maitri, Bharati and Dakshin Gangotri.</p>
+    <ul class="login-points">
+      <li><i class="bi bi-broadcast"></i> Live weather, power and fuel telemetry</li>
+      <li><i class="bi bi-exclamation-triangle"></i> Automatic blizzard, cold and fuel alerts</li>
+      <li><i class="bi bi-people"></i> Crew, medical, stores and maintenance in one place</li>
+    </ul>
+  </div>
+  <div class="login-side">
+    <div class="login-card">
+      <span class="eyebrow">Welcome back</span>
+      <h2 class="mt-1">Sign in</h2>
+      <p class="text-muted mb-4">Use your NCPOR or station account.</p>
+      {% if form.errors %}
+        <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>Incorrect username or password.</div>
+      {% endif %}
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="mb-3">
+          <label class="form-label" for="id_username">Username</label>
+          <div class="input-icon"><i class="bi bi-person"></i>
+            <input class="form-control form-control-lg" id="id_username" name="username" autocomplete="username" autofocus required value="{{ form.username.value|default:'' }}">
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label" for="id_password">Password</label>
+          <div class="input-icon"><i class="bi bi-lock"></i>
+            <input class="form-control form-control-lg" id="id_password" type="password" name="password" autocomplete="current-password" required>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg w-100" type="submit">Sign in <i class="bi bi-arrow-right ms-1"></i></button>
+      </form>
+      {% if DEMO_MODE %}
+        <div class="demo-login">
+          <div class="demo-login-head"><span>Or try a demo account</span><small>One click, no password</small></div>
+          <form method="post" action="{% url 'accounts:switch' %}" class="demo-grid">{% csrf_token %}
+            {% for acct in demo_accounts %}
+              <button type="submit" name="username" value="{{ acct.username }}" class="demo-chip">
+                <span class="avatar sm role-{{ acct.role|lower }}">{{ acct.first_name|first|default:acct.username|first|upper }}</span>
+                <span><strong>{{ acct.get_role_display|cut:" (NCPOR)"|cut:" / Technician" }}</strong><small>{% if acct.is_hq %}All stations{% else %}{{ acct.station.name|default:"No station" }}{% endif %}</small></span>
+              </button>
+            {% empty %}
+              <p class="small text-muted mb-0">Run <code>manage.py seed_demo</code> to create the demo accounts.</p>
+            {% endfor %}
+          </form>
+        </div>
+      {% endif %}
+      <p class="small text-muted mt-4 mb-0 text-center">National Centre for Polar and Ocean Research · Ministry of Earth Sciences</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

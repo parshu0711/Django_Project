@@ -1,0 +1,173 @@
+{% load static polar_tags %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1d33">
+  <title>{% block title %}{{ title|default:"PolarOps" }}{% endblock %} · PolarOps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="{% static 'css/polarops.css' %}?v=8" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block body %}
+{% if user.is_authenticated %}
+<nav class="navbar navbar-expand-lg app-nav sticky-top" aria-label="Main navigation">
+  <div class="container-fluid app-container">
+    <a href="{% url 'core:dashboard' %}" class="brand-link me-lg-4">
+      <span class="brand-mark"><i class="bi bi-snow2"></i></span>
+      <span>
+        <span class="brand-name">PolarOps</span>
+        <span class="brand-sub">Indian Antarctic Stations</span>
+      </span>
+    </a>
+
+    <div class="d-flex align-items-center gap-2 d-lg-none ms-auto">
+      <a class="icon-btn" href="{% url 'operations:incident_list' %}?open=1" aria-label="Open incidents">
+        <i class="bi bi-bell"></i>{% if nav_open_incidents %}<span class="icon-badge">{{ nav_open_incidents }}</span>{% endif %}
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link {% active 'core:dashboard' %}" href="{% url 'core:dashboard' %}"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% active 'stations:' 'operations:incident' %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-geo-alt"></i><span>Stations</span></a>
+          <div class="dropdown-menu mega-menu">
+            <a class="mega-item" href="{% url 'stations:station_list' %}"><span class="mega-icon bg-blue"><i class="bi bi-geo-alt"></i></span><span><strong>Research stations</strong><small>Maitri, Bharati, Dakshin Gangotri</small></span></a>
+            <a class="mega-item" href="{% url 'stations:sitrep_list' %}"><span class="mega-icon bg-teal"><i class="bi bi-journal-text"></i></span><span><strong>Situation reports</strong><small>Daily SITREPs to HQ</small></span></a>
+            <a class="mega-item" href="{% url 'operations:incident_list' %}?open=1"><span class="mega-icon bg-red"><i class="bi bi-exclamation-triangle"></i></span><span><strong>Incidents &amp; alerts {% if nav_open_incidents %}<span class="pill pill-danger ms-1">{{ nav_open_incidents }} open</span>{% endif %}</strong><small>Emergencies and automatic alerts</small></span></a>
+          </div>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% active 'telemetry:' %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-broadcast"></i><span>Telemetry</span></a>
+          <div class="dropdown-menu mega-menu">
+            <a class="mega-item" href="{% url 'telemetry:weather_list' %}"><span class="mega-icon bg-blue"><i class="bi bi-cloud-snow"></i></span><span><strong>Weather</strong><small>Temperature, wind, pressure, visibility</small></span></a>
+            <a class="mega-item" href="{% url 'telemetry:power_list' %}"><span class="mega-icon bg-amber"><i class="bi bi-lightning-charge"></i></span><span><strong>Power &amp; fuel</strong><small>Generators, renewables, fuel, battery</small></span></a>
+          </div>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% active 'personnel:' %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-people"></i><span>People</span></a>
+          <div class="dropdown-menu mega-menu">
+            <a class="mega-item" href="{% url 'personnel:member_list' %}"><span class="mega-icon bg-teal"><i class="bi bi-people"></i></span><span><strong>Members</strong><small>Who is on station, in the field or in transit</small></span></a>
+            <a class="mega-item" href="{% url 'personnel:expedition_list' %}"><span class="mega-icon bg-violet"><i class="bi bi-flag"></i></span><span><strong>Expeditions</strong><small>ISEA batches and teams</small></span></a>
+            <a class="mega-item" href="{% url 'personnel:medical_list' %}"><span class="mega-icon bg-red"><i class="bi bi-heart-pulse"></i></span><span><strong>Medical checks</strong><small>Vitals and fitness for duty</small></span></a>
+          </div>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% active 'inventory:' %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-box-seam"></i><span>Logistics</span></a>
+          <div class="dropdown-menu mega-menu">
+            <a class="mega-item" href="{% url 'inventory:item_list' %}"><span class="mega-icon bg-amber"><i class="bi bi-box-seam"></i></span><span><strong>Stock items</strong><small>Fuel, food, medical and spares</small></span></a>
+            <a class="mega-item" href="{% url 'inventory:movement_list' %}"><span class="mega-icon bg-slate"><i class="bi bi-arrow-left-right"></i></span><span><strong>Stock movements</strong><small>Audit trail of receipts and issues</small></span></a>
+            <a class="mega-item" href="{% url 'inventory:shipment_list' %}"><span class="mega-icon bg-violet"><i class="bi bi-truck"></i></span><span><strong>Shipments</strong><small>Ship, DROMLAN and helicopter resupply</small></span></a>
+          </div>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% active 'operations:equipment' 'operations:task' %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-gear-wide-connected"></i><span>Operations</span></a>
+          <div class="dropdown-menu mega-menu">
+            <a class="mega-item" href="{% url 'operations:equipment_list' %}"><span class="mega-icon bg-slate"><i class="bi bi-gear-wide-connected"></i></span><span><strong>Equipment</strong><small>Register and service schedule</small></span></a>
+            <a class="mega-item" href="{% url 'operations:task_list' %}"><span class="mega-icon bg-blue"><i class="bi bi-tools"></i></span><span><strong>Maintenance</strong><small>Work orders and repairs</small></span></a>
+          </div>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% active 'research:' %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-binoculars"></i><span>Science</span></a>
+          <div class="dropdown-menu mega-menu">
+            <a class="mega-item" href="{% url 'research:project_list' %}"><span class="mega-icon bg-teal"><i class="bi bi-binoculars"></i></span><span><strong>Research projects</strong><small>Glaciology, atmosphere, biology and more</small></span></a>
+            <a class="mega-item" href="{% url 'research:log_list' %}"><span class="mega-icon bg-blue"><i class="bi bi-pencil-square"></i></span><span><strong>Field logs</strong><small>Daily field activity and samples</small></span></a>
+          </div>
+        </li>
+      </ul>
+
+      <div class="nav-right">
+        <span class="scope-chip d-none d-xxl-inline-flex">
+          {% if user.is_hq %}<i class="bi bi-globe-asia-australia"></i> HQ · all stations
+          {% elif user.station %}<i class="bi bi-geo-alt-fill"></i> {{ user.station.name }}
+          {% else %}<i class="bi bi-exclamation-circle"></i> No station{% endif %}
+        </span>
+        <a class="icon-btn d-none d-lg-inline-flex" href="{% url 'operations:incident_list' %}?open=1" title="Open incidents" aria-label="Open incidents">
+          <i class="bi bi-bell"></i>{% if nav_open_incidents %}<span class="icon-badge">{{ nav_open_incidents }}</span>{% endif %}
+        </a>
+        <div class="dropdown">
+          <button class="user-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="avatar">{{ user.first_name|first|default:user.username|first|upper }}</span>
+            <span class="user-name">{{ user }}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end user-menu">
+            <li class="user-menu-head">
+              <span class="avatar lg">{{ user.first_name|first|default:user.username|first|upper }}</span>
+              <span><strong>{{ user }}</strong><small>{{ user.get_role_display }}</small>
+              <small class="text-primary">{% if user.is_hq %}HQ · all stations{% elif user.station %}{{ user.station.name }} station{% endif %}</small></span>
+            </li>
+            {% if DEMO_MODE %}
+            <li><hr class="dropdown-divider"></li>
+            <li class="menu-section">Switch demo account <span class="demo-tag">Demo</span></li>
+            <li>
+              <form method="post" action="{% url 'accounts:switch' %}" class="switch-list">{% csrf_token %}
+                {% for acct in demo_accounts %}
+                  <button type="submit" name="username" value="{{ acct.username }}" class="switch-item{% if acct.pk == user.pk %} current{% endif %}"{% if acct.pk == user.pk %} disabled aria-current="true"{% endif %}>
+                    <span class="avatar sm role-{{ acct.role|lower }}">{{ acct.first_name|first|default:acct.username|first|upper }}</span>
+                    <span class="switch-text">
+                      <strong>{{ acct.get_role_display }}</strong>
+                      <small>{{ acct }} · {% if acct.is_hq %}All stations{% else %}{{ acct.station.name|default:"No station" }}{% endif %}</small>
+                    </span>
+                    {% if acct.pk == user.pk %}<i class="bi bi-check2 switch-check"></i>{% endif %}
+                  </button>
+                {% empty %}
+                  <p class="small text-muted px-2 mb-1">No demo accounts. Run <code>manage.py seed_demo</code>.</p>
+                {% endfor %}
+              </form>
+            </li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'core:landing' %}"><i class="bi bi-house me-2"></i>Home page</a></li>
+            <li><a class="dropdown-item" href="{% url 'api-root' %}"><i class="bi bi-plug me-2"></i>REST API</a></li>
+            {% if user.is_staff %}<li><a class="dropdown-item" href="{% url 'admin:index' %}"><i class="bi bi-shield-lock me-2"></i>Admin panel</a></li>{% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+                <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Sign out</button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="content app-container">
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="app-footer app-container">
+  <span><i class="bi bi-snow2"></i> PolarOps · National Centre for Polar and Ocean Research</span>
+  <span>Ministry of Earth Sciences · All times IST</span>
+</footer>
+{% else %}
+  {% block anonymous %}{% endblock %}
+{% endif %}
+{% endblock %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% if GOOGLE_MAPS_API_KEY %}<script>window.POLAR_GMAPS_KEY = "{{ GOOGLE_MAPS_API_KEY|escapejs }}";</script>{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>
