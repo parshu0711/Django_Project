@@ -1,47 +1,49 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static polar_tags %}
 {% block title %}Sign in{% endblock %}
-{% block anonymous %}
-<div class="login-page">
-  <div class="login-hero">
-    <div class="lp-aurora" aria-hidden="true"></div>
-    <div class="lp-snow" aria-hidden="true"></div>
-    <a class="login-home" href="{% url 'core:landing' %}"><i class="bi bi-arrow-left me-1"></i>Back to home</a>
-    <div class="brand-mark lg"><i class="bi bi-snow2"></i></div>
-    <h1>PolarOps</h1>
-    <p>Digital platform for remote management of the Indian Antarctic research stations: Maitri, Bharati and Dakshin Gangotri.</p>
-    <ul class="login-points">
-      <li><i class="bi bi-broadcast"></i> Live weather, power and fuel telemetry</li>
-      <li><i class="bi bi-exclamation-triangle"></i> Automatic blizzard, cold and fuel alerts</li>
-      <li><i class="bi bi-people"></i> Crew, medical, stores and maintenance in one place</li>
-    </ul>
-  </div>
-  <div class="login-side">
-    <div class="login-card">
-      <span class="eyebrow">Welcome back</span>
-      <h2 class="mt-1">Sign in</h2>
-      <p class="text-muted mb-4">Use your NCPOR or station account.</p>
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=5">{% endblock %}
+{% block body %}
+<div class="login po">
+  <section class="login-art" aria-label="PolarOps">
+    <div class="top">
+      <a href="{% url 'core:landing' %}" class="po-brand" aria-label="PolarOps home">
+        <span class="seal" aria-hidden="true"><span>PO</span></span>
+        <span><span class="po-brand-name">PolarOps</span><span class="po-brand-sub mono">Indian Antarctic Stations</span></span>
+      </a>
+      <a class="back mono" href="{% url 'core:landing' %}"><i class="ph-light ph-arrow-left"></i>Back to home</a>
+    </div>
+    <div class="po-globe" id="login-globe">
+      <div class="frame" aria-hidden="true"><span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span></div>
+    </div>
+    <div class="foot mono">
+      <span data-fx="decrypt" data-delay="300">Secure access — NCPOR / station accounts</span>
+      <span>Goa <b data-clock data-tz="Asia/Kolkata">--:--</b> · UTC <b data-clock data-tz="UTC">--:--</b></span>
+    </div>
+  </section>
+
+  <section class="login-side">
+    <div class="access-card">
+      <span class="eyebrow mono">Access / 01</span>
+      <h1 data-fx="split">Sign in</h1>
+      <p class="sub">Use your NCPOR or station account.</p>
       {% if form.errors %}
-        <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>Incorrect username or password.</div>
+        <div class="notice notice-danger login-error" role="alert"><span class="notice-kicker">Denied</span><span>Incorrect username or password.</span></div>
       {% endif %}
-      <form method="post">{% csrf_token %}
+      <form method="post" class="access-form">{% csrf_token %}
         <input type="hidden" name="next" value="{{ next }}">
-        <div class="mb-3">
-          <label class="form-label" for="id_username">Username</label>
-          <div class="input-icon"><i class="bi bi-person"></i>
-            <input class="form-control form-control-lg" id="id_username" name="username" autocomplete="username" autofocus required value="{{ form.username.value|default:'' }}">
-          </div>
+        <div>
+          <label class="field-label" for="id_username">Username</label>
+          <input class="field" id="id_username" name="username" autocomplete="username" autofocus required value="{{ form.username.value|default:'' }}">
         </div>
-        <div class="mb-4">
-          <label class="form-label" for="id_password">Password</label>
-          <div class="input-icon"><i class="bi bi-lock"></i>
-            <input class="form-control form-control-lg" id="id_password" type="password" name="password" autocomplete="current-password" required>
-          </div>
+        <div>
+          <label class="field-label" for="id_password">Password</label>
+          <input class="field" id="id_password" type="password" name="password" autocomplete="current-password" required>
         </div>
-        <button class="btn btn-primary btn-lg w-100" type="submit">Sign in <i class="bi bi-arrow-right ms-1"></i></button>
+        <button class="btn btn-ink" type="submit" data-fx="magnet" data-strength=".12"><span class="spark" aria-hidden="true"></span>Sign in<i class="ph-light ph-arrow-right"></i></button>
       </form>
+
       {% if DEMO_MODE %}
         <div class="demo-login">
-          <div class="demo-login-head"><span>Or try a demo account</span><small>One click, no password</small></div>
+          <div class="demo-login-head"><span>Or try a demo account</span><small class="mono">One click, no password</small></div>
           <form method="post" action="{% url 'accounts:switch' %}" class="demo-grid">{% csrf_token %}
             {% for acct in demo_accounts %}
               <button type="submit" name="username" value="{{ acct.username }}" class="demo-chip">
@@ -49,13 +51,21 @@
                 <span><strong>{{ acct.get_role_display|cut:" (NCPOR)"|cut:" / Technician" }}</strong><small>{% if acct.is_hq %}All stations{% else %}{{ acct.station.name|default:"No station" }}{% endif %}</small></span>
               </button>
             {% empty %}
-              <p class="small text-muted mb-0">Run <code>manage.py seed_demo</code> to create the demo accounts.</p>
+              <p class="mono faint">Run manage.py seed_demo to create the demo accounts.</p>
             {% endfor %}
           </form>
         </div>
       {% endif %}
-      <p class="small text-muted mt-4 mb-0 text-center">National Centre for Polar and Ocean Research · Ministry of Earth Sciences</p>
+      <p class="mono faint" style="margin-top: 2rem;">National Centre for Polar and Ocean Research · Ministry of Earth Sciences</p>
     </div>
-  </div>
+  </section>
 </div>
+{% station_points as login_points %}
+{{ login_points|json_script:"map-data" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/globe.js' %}?v=3"></script>
+<script>
+  PolarGlobe.mount(document.getElementById("login-globe"), JSON.parse(document.getElementById("map-data").textContent), { hud: true });
+</script>
 {% endblock %}

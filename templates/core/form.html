@@ -1,36 +1,40 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-head">
+<header class="page-head">
   <div>
-    {% if list_url %}<a class="back-link" href="{{ list_url }}"><i class="bi bi-arrow-left"></i> Back to list</a>{% endif %}
-    <h1>{{ title }}</h1>
+    <nav class="crumb mono" aria-label="Breadcrumb">
+      <a href="{% url 'core:dashboard' %}">Deck</a><span class="sep">/</span>
+      {% if list_url %}<a href="{{ list_url }}">{{ verbose_name|capfirst }}</a><span class="sep">/</span>{% endif %}
+      <span>{% if object.pk %}Edit{% else %}New entry{% endif %}</span>
+    </nav>
+    <h1 class="page-title" data-fx="split">{{ title }}</h1>
   </div>
-</div>
-<div class="panel form-panel">
-  <form method="post" novalidate>{% csrf_token %}
-    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:" " }}</div>{% endif %}
-    <div class="row g-3">
-      {% for field in form %}
-        {% if field.is_hidden %}{{ field }}{% else %}
-        <div class="{% if field.widget_type == 'textarea' %}col-12{% else %}col-md-6{% endif %}">
-          {% if field.widget_type == 'checkbox' %}
-            <div class="form-check form-switch mt-md-4 pt-md-2">
-              {{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            </div>
-          {% else %}
-            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
-            {{ field }}
-          {% endif %}
-          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-          {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-        </div>
+</header>
+
+<form method="post" novalidate class="panel form-panel">{% csrf_token %}
+  <div class="panel-head"><h2><span class="idx">F</span>{{ verbose_name|capfirst }}</h2><span class="aside"><span style="color: var(--signal)">*</span> required</span></div>
+  {% if form.non_field_errors %}
+    <div class="notice notice-danger" style="margin: 1rem 1.25rem 0;" role="alert"><span class="notice-kicker">Check</span><span>{{ form.non_field_errors|join:" " }}</span></div>
+  {% endif %}
+  <div class="form-grid">
+    {% for field in form %}
+      {% if field.is_hidden %}{{ field }}{% else %}
+      <div class="{% if field.widget_type == 'textarea' %}wide{% endif %}{% if field.errors %} has-error{% endif %}">
+        {% if field.widget_type == 'checkbox' %}
+          <div class="form-check">{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+        {% else %}
+          <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="req">*</span>{% endif %}</label>
+          {{ field }}
         {% endif %}
-      {% endfor %}
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save</button>
-      {% if list_url %}<a href="{{ list_url }}" class="btn btn-light border">Cancel</a>{% endif %}
-    </div>
-  </form>
-</div>
+        {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-ink"><span class="spark" aria-hidden="true"></span>Save<i class="ph-light ph-check"></i></button>
+    {% if list_url %}<a href="{{ list_url }}" class="btn btn-ghost">Cancel</a>{% endif %}
+  </div>
+</form>
 {% endblock %}

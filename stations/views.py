@@ -68,11 +68,11 @@ class StationDetail(StationScopedMixin, DetailView):
             "temperature": [{"label": "Temperature", "points": [[_ts(r), r.temperature_c] for r in weather]}],
             "wind": [{"label": "Wind speed", "points": [[_ts(r), r.wind_speed_kmh] for r in weather]}],
             "power": [
-                {"label": "Diesel generator", "points": [[_ts(r), r.generator_kw] for r in power], "color": "#64748b"},
-                {"label": "Solar", "points": [[_ts(r), r.solar_kw] for r in power], "color": "#f59e0b"},
-                {"label": "Wind turbine", "points": [[_ts(r), r.wind_kw] for r in power], "color": "#0ea5e9"},
+                {"label": "Diesel generator", "points": [[_ts(r), r.generator_kw] for r in power], "color": "#0d1117"},
+                {"label": "Solar", "points": [[_ts(r), r.solar_kw] for r in power], "color": "#d99a00"},
+                {"label": "Wind turbine", "points": [[_ts(r), r.wind_kw] for r in power], "color": "#2a5bff"},
             ],
-            "fuel": [{"label": "Fuel tank", "points": [[_ts(r), r.fuel_level_pct] for r in power], "color": "#dc2626"}],
+            "fuel": [{"label": "Fuel tank", "points": [[_ts(r), r.fuel_level_pct] for r in power], "color": "#ff5a1f"}],
         }
         ctx["weather"] = st.latest_weather
         ctx["power"] = st.latest_power

@@ -105,7 +105,8 @@ class TopNavigationTests(PolarFixtures, TestCase):
     def test_top_navbar_replaces_sidebar(self):
         self.login(self.hq)
         html = self.client.get(reverse("core:dashboard")).content.decode()
-        self.assertIn('class="navbar navbar-expand-lg app-nav', html)
+        self.assertIn('<header class="topbar"', html)
+        self.assertIn('<nav class="appnav" aria-label="Main navigation">', html)
         self.assertNotIn("sidebar", html)
         for menu in ("Stations", "Telemetry", "People", "Logistics", "Operations", "Science"):
             self.assertIn(f"<span>{menu}</span>", html)
@@ -113,8 +114,9 @@ class TopNavigationTests(PolarFixtures, TestCase):
     def test_active_menu_is_highlighted(self):
         self.login(self.hq)
         html = self.client.get(reverse("inventory:item_list")).content.decode()
-        self.assertRegex(html, r'dropdown-toggle active"[^>]*><i class="bi bi-box-seam"></i><span>Logistics')
-        self.assertNotRegex(html, r'dropdown-toggle active"[^>]*><i class="bi bi-people"></i><span>People')
+        self.assertRegex(html, r'class="nav-btn active"[^>]*><span class="idx">04</span><span>Logistics')
+        self.assertNotRegex(html, r'class="nav-btn active"[^>]*><span class="idx">03</span><span>People')
+        self.assertNotRegex(html, r'class="nav-link active"[^>]*><span class="idx">00</span><span>Dashboard')
 
     def test_incident_badge_is_scoped_to_station(self):
         self.login(self.bha_leader)

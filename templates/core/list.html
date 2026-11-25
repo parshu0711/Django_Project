@@ -1,47 +1,52 @@
 {% extends "base.html" %}{% load polar_tags %}
 {% block content %}
-<div class="page-head">
+<header class="page-head">
   <div>
-    <h1>{{ title }}</h1>
+    <nav class="crumb mono" aria-label="Breadcrumb"><a href="{% url 'core:dashboard' %}">Deck</a><span class="sep">/</span><span>{{ title }}</span></nav>
+    <h1 class="page-title" data-fx="split">{{ title }}</h1>
     {% if subtitle %}<p class="page-sub">{{ subtitle }}</p>{% endif %}
   </div>
   <div class="page-actions">
-    <a class="btn btn-outline-secondary" href="{% querystring export='csv' page=None %}"><i class="bi bi-download me-1"></i>CSV</a>
-    {% if create_name %}<a class="btn btn-primary" href="{% url create_name %}"><i class="bi bi-plus-lg me-1"></i>Add new</a>{% endif %}
+    <a class="btn btn-ghost btn-sm" href="{% querystring export='csv' page=None %}"><i class="ph-light ph-download-simple"></i>CSV</a>
+    {% if create_name %}<a class="btn btn-ink btn-sm" href="{% url create_name %}"><span class="spark" aria-hidden="true"></span>Add new<i class="ph-light ph-plus"></i></a>{% endif %}
   </div>
-</div>
+</header>
 
 {% if search_enabled or filters or stations %}
-<form method="get" class="filter-bar">
+<form method="get" class="filters" role="search">
   {% if search_enabled %}
-    <div class="filter-search">
-      <i class="bi bi-search"></i>
-      <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Search…">
-    </div>
+    <label class="filter-search"><span class="sr-only">Search</span>
+      <i class="ph-light ph-magnifying-glass" aria-hidden="true"></i>
+      <input type="search" name="q" value="{{ q }}" class="field" placeholder="Search {{ title|lower }}">
+    </label>
   {% endif %}
   {% if stations %}
-    <select name="station" class="form-select" onchange="this.form.submit()">
-      <option value="">All stations</option>
-      {% for s in stations %}<option value="{{ s.pk }}" {% if current_station == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-    </select>
+    <label><span class="sr-only">Station</span>
+      <select name="station" class="field-select" onchange="this.form.submit()">
+        <option value="">All stations</option>
+        {% for s in stations %}<option value="{{ s.pk }}" {% if current_station == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
   {% endif %}
   {% for f in filters %}
-    <select name="{{ f.name }}" class="form-select" onchange="this.form.submit()">
-      <option value="">{{ f.label }}: all</option>
-      {% for value, label in f.choices %}<option value="{{ value }}" {% if f.current == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>{% endfor %}
-    </select>
+    <label><span class="sr-only">{{ f.label }}</span>
+      <select name="{{ f.name }}" class="field-select" onchange="this.form.submit()">
+        <option value="">{{ f.label }}: all</option>
+        {% for value, label in f.choices %}<option value="{{ value }}" {% if f.current == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
   {% endfor %}
   {% for key in request.GET %}{% if key == "open" or key == "low" %}<input type="hidden" name="{{ key }}" value="1">{% endif %}{% endfor %}
-  <button class="btn btn-light border" type="submit">Apply</button>
-  {% if request.GET %}<a class="btn btn-link text-muted" href="{{ request.path }}">Clear</a>{% endif %}
+  <button class="btn btn-ink btn-sm" type="submit">Apply</button>
+  {% if request.GET %}<a class="clear text-link" href="{{ request.path }}">Clear</a>{% endif %}
 </form>
 {% endif %}
 
-<div class="panel">
-  <div class="table-responsive">
-    <table class="table data-table align-middle mb-0">
+<section class="panel">
+  <div class="table-wrap">
+    <table class="table">
       <thead>
-        <tr>{% for label, acc in columns %}<th>{{ label }}</th>{% endfor %}{% if edit_name %}<th></th>{% endif %}</tr>
+        <tr>{% for label, acc in columns %}<th scope="col">{{ label }}</th>{% endfor %}{% if edit_name %}<th scope="col"><span class="sr-only">Edit</span></th>{% endif %}</tr>
       </thead>
       <tbody>
         {% for obj in object_list %}
@@ -50,23 +55,29 @@
             {% for label, acc in columns %}
               <td>{% if forloop.first %}{% cell obj acc badge_fields row_url %}{% else %}{% cell obj acc badge_fields %}{% endif %}</td>
             {% endfor %}
-            {% if edit_name %}<td class="text-end"><a class="btn btn-sm btn-light" href="{% url edit_name obj.pk %}" title="Edit"><i class="bi bi-pencil"></i></a></td>{% endif %}
+            {% if edit_name %}<td class="act"><a class="btn btn-ghost btn-sm btn-icon" href="{% url edit_name obj.pk %}" title="Edit" aria-label="Edit"><i class="ph-light ph-pencil-simple"></i></a></td>{% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="20" class="empty-state"><i class="bi bi-inbox"></i><div>No records found.</div></td></tr>
+          <tr><td colspan="20">
+            <div class="empty">
+              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><ellipse cx="32" cy="40" rx="26" ry="9"/><ellipse cx="32" cy="40" rx="17" ry="6"/><ellipse cx="32" cy="40" rx="8" ry="3"/><path d="M32 40V12M28 16h8"/><rect x="29" y="9" width="6" height="6" fill="currentColor"/></svg>
+              <strong>No records found</strong>
+              <span class="mono">{% if request.GET %}Try clearing the filters{% else %}Nothing has been logged here yet{% endif %}</span>
+            </div>
+          </td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   <div class="panel-foot">
-    <span class="text-muted small">{{ total }} record{{ total|pluralize }}</span>
+    <span class="mono muted"><span class="num">{{ total }}</span> record{{ total|pluralize }}</span>
     {% if is_paginated %}
-      <nav class="ms-auto"><ul class="pagination pagination-sm mb-0">
-        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="{% querystring page=page_obj.previous_page_number %}">‹</a></li>{% endif %}
-        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span></li>
-        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="{% querystring page=page_obj.next_page_number %}">›</a></li>{% endif %}
-      </ul></nav>
+      <nav class="pager" aria-label="Pages">
+        {% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}" aria-label="Previous page"><i class="ph-light ph-arrow-left"></i></a>{% endif %}
+        <span>Page {{ page_obj.number }} / {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}" aria-label="Next page"><i class="ph-light ph-arrow-right"></i></a>{% endif %}
+      </nav>
     {% endif %}
   </div>
-</div>
+</section>
 {% endblock %}

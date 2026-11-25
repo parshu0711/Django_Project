@@ -1,243 +1,474 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load static polar_tags %}
 {% block title %}Remote management for India's Antarctic stations{% endblock %}
 {% block body_class %}landing{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=5">
 {% endblock %}
 
 {% block body %}
-<header class="lp-hero">
-  <div class="lp-aurora" aria-hidden="true"></div>
-  <div class="lp-snow" aria-hidden="true"></div>
-
-  <nav class="navbar navbar-expand-md lp-nav" aria-label="Site">
-    <div class="container lp-container">
-      <a href="{% url 'core:landing' %}" class="brand-link">
-        <span class="brand-mark"><i class="bi bi-snow2"></i></span>
-        <span><span class="brand-name">PolarOps</span><span class="brand-sub">Indian Antarctic Stations</span></span>
-      </a>
-      <button class="navbar-toggler lp-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#lpNav" aria-controls="lpNav" aria-expanded="false" aria-label="Toggle navigation">
-        <i class="bi bi-list"></i>
-      </button>
-      <div class="collapse navbar-collapse" id="lpNav">
-        <ul class="navbar-nav mx-auto">
-          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
-          <li class="nav-item"><a class="nav-link" href="#stations">Stations</a></li>
-          <li class="nav-item"><a class="nav-link" href="#how">How it works</a></li>
-          <li class="nav-item"><a class="nav-link" href="#roles">Access</a></li>
-        </ul>
-        {% if user.is_authenticated %}
-          <a class="btn btn-ice" href="{% url 'core:dashboard' %}">Open dashboard <i class="bi bi-arrow-right"></i></a>
-        {% else %}
-          <a class="btn btn-ice" href="{% url 'accounts:login' %}"><i class="bi bi-box-arrow-in-right me-1"></i>Sign in</a>
-        {% endif %}
-      </div>
-    </div>
+<div class="po">
+<header class="po-top" id="po-top">
+  <a href="{% url 'core:landing' %}" class="po-brand" aria-label="PolarOps home">
+    <span class="seal" aria-hidden="true"><span>PO</span></span>
+    <span>
+      <span class="po-brand-name">PolarOps</span>
+      <span class="po-brand-sub mono">Indian Antarctic Stations</span>
+    </span>
+  </a>
+  <nav class="po-nav mono" aria-label="Site">
+    <a href="#stations"><span class="idx">01</span><span data-fx="decrypt" data-hover>Network</span></a>
+    <a href="#features"><span class="idx">02</span><span data-fx="decrypt" data-hover>Modules</span></a>
+    <a href="#how"><span class="idx">03</span><span data-fx="decrypt" data-hover>Signal path</span></a>
+    <a href="#roles"><span class="idx">04</span><span data-fx="decrypt" data-hover>Access</span></a>
+    {% if user.is_authenticated %}
+      <a class="po-btn sm" href="{% url 'core:dashboard' %}">Open dashboard <i class="ph-light ph-arrow-right"></i></a>
+    {% else %}
+      <a class="po-btn sm" href="{% url 'accounts:login' %}">Sign in <i class="ph-light ph-arrow-right"></i></a>
+    {% endif %}
   </nav>
-
-  <div class="container lp-container lp-hero-body">
-    <div class="row align-items-center g-5">
-      <div class="col-lg-6">
-        <span class="lp-kicker"><span class="live-dot"></span> NCPOR · Ministry of Earth Sciences</span>
-        <h1 class="lp-title">Run India's Antarctic stations <span class="lp-grad">from anywhere.</span></h1>
-        <p class="lp-lead">
-          PolarOps connects headquarters in Goa with the teams at Maitri and Bharati: live weather and
-          power telemetry, automatic blizzard and fuel alerts, crew and medical records, stores, resupply
-          and maintenance, all in one secure place that works over a thin satellite link.
-        </p>
-        <div class="lp-cta">
-          {% if user.is_authenticated %}
-            <a class="btn btn-ice btn-lg" href="{% url 'core:dashboard' %}">Open the command dashboard <i class="bi bi-arrow-right"></i></a>
-          {% else %}
-            <a class="btn btn-ice btn-lg" href="{% url 'accounts:login' %}">Sign in to PolarOps <i class="bi bi-arrow-right"></i></a>
-          {% endif %}
-          <a class="btn btn-ghost btn-lg" href="#features">Explore features</a>
-        </div>
-        <ul class="lp-trust">
-          <li><i class="bi bi-shield-check"></i> Role-based access</li>
-          <li><i class="bi bi-reception-3"></i> Low-bandwidth ready</li>
-          <li><i class="bi bi-plug"></i> Open REST API</li>
-        </ul>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="lp-console">
-          <div class="lp-console-bar">
-            <span class="dots"><i></i><i></i><i></i></span>
-            <span>Station network</span>
-            <span class="ms-auto lp-console-tag">{{ stations|length }} station{{ stations|length|pluralize }}</span>
-          </div>
-          <div class="lp-console-body">
-            {% for s in stations %}
-              <div class="lp-station">
-                <span class="lp-station-icon status-{{ s.status|lower }}"><i class="bi bi-geo-alt-fill"></i></span>
-                <div class="flex-grow-1 min-w-0">
-                  <div class="lp-station-name">{{ s.name }} <span class="lp-code">{{ s.code }}</span></div>
-                  <div class="lp-station-meta">{{ s.region|default:"Antarctica" }}</div>
-                </div>
-                <div class="text-end">
-                  <span class="lp-status status-{{ s.status|lower }}">{{ s.get_status_display }}</span>
-                  <div class="lp-station-meta">{{ s.latitude|floatformat:2 }}°, {{ s.longitude|floatformat:2 }}°{% if s.established %} · est. {{ s.established }}{% endif %}</div>
-                </div>
-              </div>
-            {% empty %}
-              <div class="lp-station-meta text-center py-4">Stations appear here once they are added.</div>
-            {% endfor %}
-          </div>
-          <div class="lp-console-foot">
-            <div><i class="bi bi-cloud-snow"></i><span>Weather</span></div>
-            <div><i class="bi bi-lightning-charge"></i><span>Power</span></div>
-            <div><i class="bi bi-fuel-pump"></i><span>Fuel</span></div>
-            <div><i class="bi bi-people"></i><span>Crew</span></div>
-          </div>
-        </div>
-        <div class="lp-float lp-float-alert">
-          <span class="lp-float-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
-          <div><strong>Blizzard warning raised automatically</strong><small>When wind passes the alert limit, HQ is emailed</small></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="container lp-container">
-    <div class="lp-stats">
-      <div><strong>{{ stations|length }}</strong><span>Stations managed</span></div>
-      <div><strong>{{ active_count }}</strong><span>Year-round bases</span></div>
-      <div><strong>5</strong><span>Automatic alert rules</span></div>
-      <div><strong>60 s</strong><span>Dashboard refresh</span></div>
-    </div>
+  <div class="po-top-end">
+    <span class="po-clock mono">Goa <b data-clock data-tz="Asia/Kolkata">--:--</b> · UTC <b data-clock data-tz="UTC">--:--</b></span>
+    {% if user.is_authenticated %}
+      <a class="po-btn sm" href="{% url 'core:dashboard' %}"><span class="spark" aria-hidden="true"></span>Open dashboard <i class="ph-light ph-arrow-right"></i></a>
+    {% else %}
+      <a class="po-btn sm" href="{% url 'accounts:login' %}"><span class="spark" aria-hidden="true"></span>Sign in <i class="ph-light ph-arrow-right"></i></a>
+    {% endif %}
+    <button class="po-menu-btn" type="button" data-menu-toggle="po-top" aria-controls="po-top" aria-expanded="false" aria-label="Open menu"><i class="ph-light ph-list"></i></button>
   </div>
 </header>
 
+<section class="po-hero" aria-labelledby="po-hero-title">
+  <div class="po-hero-grid">
+    <div class="po-hero-copy">
+      <p class="po-eyebrow mono" data-fx="decrypt" data-delay="150">SYS/01 — Indian Antarctic network — {{ stations|length|stringformat:"02d" }} stations</p>
+
+      <h1 class="po-title" id="po-hero-title" data-fx="split" data-delay="250">
+        <span class="sr-only">Run the ice from Goa.</span>
+        <span aria-hidden="true">
+          <span class="line">Run the</span>
+          <span class="line"><span class="giant" data-split-skip>ice<span class="echo e1">ice</span><span class="echo e2">ice</span><span class="fill">ice</span></span></span>
+          <span class="line">from <span class="soft">Goa.</span></span>
+        </span>
+      </h1>
+
+      <p class="po-live" data-fx="fade" data-delay="900">
+        <span>Telemetry, alerts and crew from</span>
+        <span class="rot-group">
+        <span class="bracket" aria-hidden="true">[</span>
+        <span class="rot" data-fx="rotate" data-words='[{% for s in stations %}"{{ s.name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}]'>{% for s in stations %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+        <span class="bracket" aria-hidden="true">]</span>
+        </span>
+      </p>
+      <p class="po-lead" data-fx="fade" data-delay="1000">
+        One quiet console for weather, power, fuel, crew, stores and repairs at India's Antarctic
+        stations, built to stay light over a thin satellite link.
+      </p>
+
+      <div class="po-cta" data-fx="fade" data-delay="1150">
+        {% if user.is_authenticated %}
+          <a class="po-btn" data-fx="magnet" href="{% url 'core:dashboard' %}"><span class="spark" aria-hidden="true"></span>Open dashboard <i class="ph-light ph-arrow-right"></i></a>
+        {% else %}
+          <a class="po-btn" data-fx="magnet" href="{% url 'accounts:login' %}"><span class="spark" aria-hidden="true"></span>Sign in to PolarOps <i class="ph-light ph-arrow-right"></i></a>
+        {% endif %}
+        <a class="po-link-arrow" href="#stations">See the network <span class="chev" aria-hidden="true"><b></b><b></b><b></b></span></a>
+      </div>
+
+      <p class="po-specs mono" data-fx="fade" data-delay="1300">
+        <span>Role-based access</span><span>Low-bandwidth</span><span>Open REST API</span>
+      </p>
+    </div>
+
+    <div class="po-hero-art">
+      <div class="po-globe" id="po-globe">
+        <div class="frame" aria-hidden="true"><span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span></div>
+        <span class="reg" style="left: 50%; top: 0;" aria-hidden="true"></span>
+        <span class="reg" style="left: 0; top: 50%;" aria-hidden="true"></span>
+        {% with s=stations.0 %}{% if s %}
+          <span class="vlabel mono" aria-hidden="true">{{ s.latitude|floatformat:2 }}° / {{ s.longitude|floatformat:2 }}° — {{ s.name }}</span>
+        {% endif %}{% endwith %}
+        <div class="ruler" aria-hidden="true"></div>
+        <span class="ruler-n mono" style="top: 14%;" aria-hidden="true">60°</span>
+        <span class="ruler-n mono" style="top: 50%;" aria-hidden="true">75°</span>
+        <span class="ruler-n mono" style="top: 86%;" aria-hidden="true">90°</span>
+        <div class="legend mono" aria-hidden="true">
+          <span>Year-round <i style="background: var(--glacier)"></i></span>
+          <span>Supply base <i style="background: var(--ink-40)"></i></span>
+          <span>VSAT link <i style="background: var(--signal)"></i></span>
+        </div>
+        <div class="caption mono" aria-hidden="true">
+          <span>Fig. 01 — <b>Ice dome</b>, south polar view</span>
+          <span>Hover a beacon for its datasheet</span>
+        </div>
+        <span class="seal" aria-hidden="true"><span>PO</span></span>
+        <ul class="sr-only">
+          {% for s in stations %}<li>{{ s.name }} ({{ s.code }}): {{ s.get_status_display }}{% if s.established %}, established {{ s.established }}{% endif %}</li>{% endfor %}
+        </ul>
+        <noscript><p class="mono" style="position:absolute;inset:auto 0 45% 0;text-align:center;color:var(--ink-60)">{% for s in stations %}{{ s.name }}{% if not forloop.last %} · {% endif %}{% endfor %}</p></noscript>
+      </div>
+    </div>
+  </div>
+
+  <div class="po-hud mono">
+    <div class="clocks">
+      <span>Goa <b data-clock data-tz="Asia/Kolkata">--:--</b></span>
+      <span>UTC <b data-clock data-tz="UTC">--:--</b></span>
+    </div>
+    <div><span class="k">Stations</span><span class="v" data-fx="count" data-to="{{ stations|length }}" data-pad="2">{{ stations|length|stringformat:"02d" }}</span></div>
+    <div><span class="k">Year-round</span><span class="v" data-fx="count" data-to="{{ active_count }}" data-pad="2">{{ active_count|stringformat:"02d" }}</span></div>
+    <div><span class="k">Alert rules</span><span class="v" data-fx="count" data-to="5" data-pad="2">05</span></div>
+    <div><span class="k">Refresh</span><span class="v"><span data-fx="count" data-to="60">60</span><small>s</small></span></div>
+    <a class="po-scroll" href="#stations" aria-label="Scroll to the station network"><span>Scroll</span><i class="ph-light ph-arrow-down"></i></a>
+  </div>
+</section>
+
+<div class="po-marquee" aria-hidden="true">
+  <div class="track">
+    {% for pass in "ab" %}<span>Weather</span><span>Power</span><span>Fuel</span><span>Crew</span><span>Medical</span><span>Stores</span><span>Resupply</span><span>Maintenance</span><span>Research</span><span>SITREP</span><span>Incidents</span><span>REST API</span>{% endfor %}
+  </div>
+</div>
+
 <main>
-  <section id="features" class="lp-section">
-    <div class="container lp-container">
-      <div class="lp-section-head">
-        <span class="lp-eyebrow">Everything in one place</span>
-        <h2>Built for life and work at minus forty</h2>
-        <p>Each module replaces an email thread, a spreadsheet or a satellite phone call.</p>
-      </div>
-      <div class="lp-features">
-        <article class="lp-feature"><span class="mega-icon bg-blue"><i class="bi bi-broadcast"></i></span><h3>Live telemetry</h3><p>Temperature, wind, pressure, visibility, generator load, solar, wind power, fuel and battery, charted over 72 hours.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-red"><i class="bi bi-bell"></i></span><h3>Automatic alerts</h3><p>Blizzard, extreme cold, whiteout, low fuel and low battery readings raise incidents and email HQ, with no duplicates.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-teal"><i class="bi bi-journal-text"></i></span><h3>Situation reports</h3><p>Daily green, amber or red SITREPs from every station, with issues and requests to HQ.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-violet"><i class="bi bi-heart-pulse"></i></span><h3>Crew &amp; medical</h3><p>Expedition rosters, who is on station or in the field, and medical checks with fitness for duty.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-amber"><i class="bi bi-box-seam"></i></span><h3>Stores &amp; resupply</h3><p>Fuel, food, medical and spares with low-stock warnings, a full audit trail and ship or air shipments.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-slate"><i class="bi bi-tools"></i></span><h3>Equipment upkeep</h3><p>Service schedules with overdue warnings and maintenance work orders that update the register.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-teal"><i class="bi bi-binoculars"></i></span><h3>Research tracking</h3><p>Projects by discipline and daily field logs of activities, samples and data collected.</p></article>
-        <article class="lp-feature"><span class="mega-icon bg-blue"><i class="bi bi-plug"></i></span><h3>Open REST API</h3><p>Station gateways push sensor data with a token and can upload in bulk after a link outage.</p></article>
-      </div>
-    </div>
-  </section>
-
-  <section id="stations" class="lp-section lp-section-alt">
-    <div class="container lp-container">
-      <div class="row g-4 align-items-stretch">
-        <div class="col-lg-5">
-          <div class="lp-section-head text-start mb-4">
-            <span class="lp-eyebrow">The network</span>
-            <h2>India's stations on the ice</h2>
-            <p>From the Schirmacher Oasis to the Larsemann Hills, every station reports into one HQ view.</p>
-          </div>
-          <div class="lp-station-cards">
-            {% for s in stations %}
-              <div class="lp-station-card status-{{ s.status|lower }}">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                  <div>
-                    <h3>{{ s.name }}</h3>
-                    <div class="lp-muted small">{{ s.region|default:"Antarctica" }}</div>
-                  </div>
-                  <span class="pill pill-{% if s.status == 'ACTIVE' %}success{% elif s.status == 'SEASONAL' %}warning{% else %}secondary{% endif %}">{{ s.get_status_display }}</span>
+  <!-- 01 / Network -->
+  <section class="sec" id="stations" aria-labelledby="sec-network">
+    <div class="shell">
+      <header class="sec-head">
+        <div class="sec-index mono"><span class="n">01</span><span class="rule"></span><span>Network</span></div>
+        <h2 class="sec-title" id="sec-network" data-fx="split">India's stations on the <em>ice</em>.</h2>
+        <p class="sec-lead" data-fx="fade" data-delay="200">From the Schirmacher Oasis to the Larsemann Hills, every station reports into one HQ view. Hover a datasheet to find it on the map.</p>
+      </header>
+      <div class="net">
+        <figure class="net-map" data-fx="fade">
+          <span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span>
+          <div id="lp-map" class="lp-map" role="img" aria-label="Map of the Indian Antarctic stations"></div>
+          <figcaption class="cap mono"><span>Fig. 02 — Station network</span><span>Esri satellite · public positions</span></figcaption>
+        </figure>
+        <div class="dsheets">
+          {% for s in stations %}
+            <article class="dsheet" id="station-{{ s.code }}" data-station="{{ s.code }}" data-fx="fade" data-delay="{{ forloop.counter0 }}00">
+              <div class="dsheet-head">
+                <div>
+                  <span class="n mono">S-{{ forloop.counter|stringformat:"02d" }} / {{ s.code }}</span>
+                  <h3>{{ s.name }}</h3>
+                  <p class="region">{{ s.region|default:"Antarctica" }}</p>
                 </div>
-                <div class="lp-station-facts">
-                  {% if s.established %}<span><i class="bi bi-calendar3"></i> Est. {{ s.established }}</span>{% endif %}
-                  <span><i class="bi bi-crosshair"></i> {{ s.latitude|floatformat:2 }}°, {{ s.longitude|floatformat:2 }}°</span>
-                  {% if s.capacity_winter %}<span><i class="bi bi-snow"></i> {{ s.capacity_winter }} winter berths</span>{% endif %}
-                </div>
+                <span class="tag tag-{{ s.status|badge_colour }}">{{ s.get_status_display }}</span>
               </div>
-            {% endfor %}
+              <dl>
+                <div><dt>Position</dt><dd>{{ s.latitude|dms:"lat" }} {{ s.longitude|dms:"lng" }}</dd></div>
+                {% if s.established %}<div><dt>Established</dt><dd>{{ s.established }}</dd></div>{% endif %}
+                <div><dt>Berths</dt><dd>{{ s.capacity_winter }} winter · {{ s.capacity_summer }} summer</dd></div>
+              </dl>
+            </article>
+          {% empty %}
+            <p class="mono muted" style="padding: 1.5rem 0;">Stations appear here once they are added.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 / Modules -->
+  <section class="sec" id="features" aria-labelledby="sec-modules">
+    <div class="shell">
+      <header class="sec-head">
+        <div class="sec-index mono"><span class="n">02</span><span class="rule"></span><span>Modules</span></div>
+        <h2 class="sec-title" id="sec-modules" data-fx="split">Eight instruments, <em>one</em> console.</h2>
+        <p class="sec-lead" data-fx="fade" data-delay="200">Each module replaces an email thread, a spreadsheet or a satellite phone call. Hover the drawings.</p>
+      </header>
+
+      <div class="mods">
+        <article class="mod span-2" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-01</span><span>Weather</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-rose" viewBox="0 0 240 140">
+              <circle cx="120" cy="70" r="58" class="faint"/><circle cx="120" cy="70" r="40" class="faint"/><circle cx="120" cy="70" r="20" class="faint"/>
+              <circle cx="120" cy="70" r="58"/>
+              <g><line x1="120" y1="8" x2="120" y2="18"/><line x1="120" y1="122" x2="120" y2="132"/><line x1="58" y1="70" x2="68" y2="70"/><line x1="172" y1="70" x2="182" y2="70"/></g>
+              <g class="hair"><line x1="120" y1="12" x2="120" y2="17" transform="rotate(45 120 70)"/><line x1="120" y1="12" x2="120" y2="17" transform="rotate(135 120 70)"/><line x1="120" y1="12" x2="120" y2="17" transform="rotate(225 120 70)"/><line x1="120" y1="12" x2="120" y2="17" transform="rotate(315 120 70)"/></g>
+              <text x="116" y="5">N</text><text x="186" y="73">E</text><text x="117" y="140">S</text><text x="48" y="73">W</text>
+              <path class="gust acc" d="M196 34 C 214 30, 222 42, 210 48 M200 96 C 220 92, 230 106, 214 112"/>
+              <path class="gust" d="M24 40 C 8 44, 10 58, 26 54"/>
+              <g class="needle"><path d="M120 20 L127 70 L113 70 Z" class="fill-acc"/><path d="M113 70 L127 70 L120 120 Z"/><circle cx="120" cy="70" r="3" class="fill-ink"/></g>
+              <text x="8" y="132">WIND 118 KM/H · 120°</text>
+            </svg>
           </div>
-        </div>
-        <div class="col-lg-7">
-          <div class="lp-map-wrap"><div id="lp-map" class="lp-map" role="img" aria-label="Map of Indian Antarctic stations"></div></div>
-        </div>
+          <h3>Live telemetry</h3>
+          <p>Temperature, wind, pressure, humidity and visibility from every automatic weather station, charted over 72 hours and seven days.</p>
+        </article>
+
+        <article class="mod" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-02</span><span>Power</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-wave" viewBox="0 0 240 140">
+              <g class="faint"><line x1="0" y1="20" x2="240" y2="20"/><line x1="0" y1="70" x2="240" y2="70"/><line x1="0" y1="120" x2="240" y2="120"/><line x1="40" y1="10" x2="40" y2="130"/><line x1="100" y1="10" x2="100" y2="130"/><line x1="160" y1="10" x2="160" y2="130"/><line x1="220" y1="10" x2="220" y2="130"/></g>
+              <path d="M0 70 C 20 30, 40 30, 60 70 S 100 110, 120 70 S 160 30, 180 70 S 220 110, 240 70"/>
+              <path class="acc flow" d="M0 90 C 20 70, 40 70, 60 90 S 100 110, 120 90 S 160 70, 180 90 S 220 110, 240 90"/>
+              <rect x="176" y="14" width="6" height="6" class="fill-acc"/><text x="186" y="20">SOLAR</text>
+              <rect x="176" y="26" width="6" height="6" class="fill-ink"/><text x="186" y="32">DIESEL</text>
+            </svg>
+          </div>
+          <h3>Power and renewables</h3>
+          <p>Generator, solar and wind output against station load, with the renewable share for every reading.</p>
+        </article>
+
+        <article class="mod" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-03</span><span>Fuel</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-gauge" viewBox="0 0 240 140">
+              <path d="M50 104 A70 70 0 0 1 190 104"/>
+              <path d="M62 104 A58 58 0 0 1 178 104" class="faint"/>
+              <path class="sig" d="M50 104 A70 70 0 0 1 63.4 62.9"/>
+              <g class="hair">
+                <line x1="120" y1="36" x2="120" y2="44" transform="rotate(-90 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(-72 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(-54 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(-36 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(-18 120 104)"/><line x1="120" y1="36" x2="120" y2="44"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(18 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(36 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(54 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(72 120 104)"/><line x1="120" y1="36" x2="120" y2="44" transform="rotate(90 120 104)"/>
+              </g>
+              <text x="40" y="120">E</text><text x="194" y="120">F</text><text x="98" y="128">FUEL · %</text>
+              <g class="needle"><line x1="120" y1="104" x2="120" y2="48" class="acc"/><circle cx="120" cy="104" r="4" class="fill-ink"/></g>
+            </svg>
+          </div>
+          <h3>Fuel and batteries</h3>
+          <p>Tank level and battery charge, with alerts raised before the reserves run low.</p>
+        </article>
+
+        <article class="mod" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-04</span><span>Crew</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-ecg" viewBox="0 0 240 140">
+              <g class="faint"><line x1="0" y1="40" x2="240" y2="40"/><line x1="0" y1="80" x2="240" y2="80"/><line x1="0" y1="120" x2="240" y2="120"/><line x1="60" y1="20" x2="60" y2="130"/><line x1="120" y1="20" x2="120" y2="130"/><line x1="180" y1="20" x2="180" y2="130"/></g>
+              <polyline class="hair" points="0,80 40,80 48,80 54,70 60,80 72,80 80,36 88,118 96,80 112,80 120,70 128,80 150,80 156,70 162,80 174,80 182,36 190,118 198,80 214,80 222,70 230,80 240,80"/>
+              <polyline class="acc trace" points="0,80 40,80 48,80 54,70 60,80 72,80 80,36 88,118 96,80 112,80 120,70 128,80 150,80 156,70 162,80 174,80 182,36 190,118 198,80 214,80 222,70 230,80 240,80"/>
+              <text x="4" y="20">HR 72 BPM · SPO2 97%</text><rect x="226" y="12" width="8" height="8" class="fill-sig"/>
+            </svg>
+          </div>
+          <h3>Crew and medical</h3>
+          <p>Who is on station, in the field or in transit, and vitals and fitness for duty for each member.</p>
+        </article>
+
+        <article class="mod" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-05</span><span>Stores</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-crates" viewBox="0 0 240 140">
+              <path class="faint" d="M20 128 L120 78 L220 128"/>
+              <g><path class="fill-paper" d="M70 70 L100 55 L130 70 L100 85 Z"/><path class="fill-frost" d="M70 70 L100 85 L100 113 L70 98 Z"/><path class="fill-paper" d="M100 85 L130 70 L130 98 L100 113 Z"/></g>
+              <g><path class="fill-paper" d="M115 92 L145 77 L175 92 L145 107 Z"/><path class="fill-frost" d="M115 92 L145 107 L145 135 L115 120 Z"/><path class="fill-paper" d="M145 107 L175 92 L175 120 L145 135 Z"/><line x1="152" y1="112" x2="168" y2="104" class="acc"/></g>
+              <g class="drop"><path class="fill-paper" d="M70 42 L100 27 L130 42 L100 57 Z"/><path class="fill-frost" d="M70 42 L100 57 L100 85 L70 70 Z"/><path class="fill-paper" d="M100 57 L130 42 L130 70 L100 85 Z"/></g>
+              <text x="150" y="40">IT-0412</text><text x="150" y="52">DIESEL · 2,000 L</text>
+            </svg>
+          </div>
+          <h3>Stores</h3>
+          <p>Fuel, food, medical supplies and spares with low-stock warnings and an audit trail that can't go negative.</p>
+        </article>
+
+        <article class="mod span-2" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-06</span><span>Resupply</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-ship" viewBox="0 0 240 140">
+              <line x1="0" y1="64" x2="240" y2="64"/>
+              <g class="faint"><line x1="120" y1="64" x2="-60" y2="140"/><line x1="120" y1="64" x2="0" y2="140"/><line x1="120" y1="64" x2="60" y2="140"/><line x1="120" y1="64" x2="120" y2="140"/><line x1="120" y1="64" x2="180" y2="140"/><line x1="120" y1="64" x2="240" y2="140"/><line x1="120" y1="64" x2="300" y2="140"/><line x1="0" y1="72" x2="240" y2="72"/><line x1="0" y1="84" x2="240" y2="84"/><line x1="0" y1="102" x2="240" y2="102"/><line x1="0" y1="128" x2="240" y2="128"/></g>
+              <g class="drift">
+                <path class="fill-paper" d="M70 54 L150 54 L142 64 L78 64 Z"/>
+                <path class="fill-paper" d="M96 54 L96 42 L120 42 L120 54"/>
+                <path d="M108 42 L108 30 M104 34 L112 34"/>
+                <rect x="124" y="46" width="8" height="8" class="fill-sig"/><rect x="134" y="46" width="8" height="8"/>
+                <path class="acc" d="M64 62 L40 62 M60 58 L30 58" stroke-dasharray="3 4"/>
+              </g>
+              <text x="4" y="12">SHP-46-01 · CAPE TOWN → MAITRI</text><text x="4" y="24">ETA 14 DEC</text>
+            </svg>
+          </div>
+          <h3>Resupply</h3>
+          <p>Ship, DROMLAN flight and helicopter shipments from Cape Town to the ice shelf, with ETAs on the dashboard.</p>
+        </article>
+
+        <article class="mod span-2" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-07</span><span>Maintenance</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-gear" viewBox="0 0 240 140">
+              <g class="spin">
+                <circle cx="104" cy="72" r="38"/><circle cx="104" cy="72" r="14"/><circle cx="104" cy="72" r="26" class="faint"/>
+                <g class="fill-paper">
+                  <rect x="98" y="24" width="12" height="12"/><rect x="98" y="24" width="12" height="12" transform="rotate(40 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(80 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(120 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(160 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(200 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(240 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(280 104 72)"/><rect x="98" y="24" width="12" height="12" transform="rotate(320 104 72)"/>
+                </g>
+                <line x1="104" y1="58" x2="104" y2="46" class="acc"/>
+              </g>
+              <g class="spin small">
+                <circle cx="170" cy="46" r="17"/><circle cx="170" cy="46" r="6"/>
+                <g class="fill-paper"><rect x="166" y="23" width="8" height="8"/><rect x="166" y="23" width="8" height="8" transform="rotate(60 170 46)"/><rect x="166" y="23" width="8" height="8" transform="rotate(120 170 46)"/><rect x="166" y="23" width="8" height="8" transform="rotate(180 170 46)"/><rect x="166" y="23" width="8" height="8" transform="rotate(240 170 46)"/><rect x="166" y="23" width="8" height="8" transform="rotate(300 170 46)"/></g>
+              </g>
+              <text x="154" y="100">DG SET #2</text><text x="154" y="112">SERVICE IN 06 D</text><rect x="154" y="118" width="40" height="4" class="fill-sig"/>
+            </svg>
+          </div>
+          <h3>Equipment upkeep</h3>
+          <p>Service schedules with overdue warnings, and work orders that update the equipment register when they're closed.</p>
+        </article>
+
+        <article class="mod span-2" data-fx="tilt">
+          <div class="mod-top mono"><span class="idx">M-08</span><span>Research</span></div>
+          <div class="mod-art" aria-hidden="true">
+            <svg class="art art-core" viewBox="0 0 240 140">
+              <ellipse cx="120" cy="16" rx="22" ry="6"/>
+              <path d="M98 16 L98 124 M142 16 L142 124"/>
+              <path d="M98 124 A22 6 0 0 0 142 124"/>
+              <g class="faint"><path d="M98 30 Q120 34 142 30"/><path d="M98 38 Q120 41 142 38"/><path d="M98 50 Q120 55 142 50"/><path d="M98 58 Q120 60 142 58"/><path d="M98 72 Q120 77 142 72"/><path d="M98 84 Q120 86 142 84"/><path d="M98 96 Q120 101 142 96"/><path d="M98 108 Q120 110 142 108"/></g>
+              <g class="band"><rect x="94" y="22" width="52" height="16" class="acc"/><line x1="146" y1="30" x2="170" y2="30" class="acc"/><text x="174" y="33">SAMPLE</text></g>
+              <g class="hair"><line x1="60" y1="16" x2="70" y2="16"/><line x1="64" y1="43" x2="70" y2="43"/><line x1="60" y1="70" x2="70" y2="70"/><line x1="64" y1="97" x2="70" y2="97"/><line x1="60" y1="124" x2="70" y2="124"/><line x1="70" y1="16" x2="70" y2="124"/></g>
+              <text x="26" y="19">0 M</text><text x="16" y="73">120 M</text><text x="16" y="127">240 M</text>
+            </svg>
+          </div>
+          <h3>Research and field logs</h3>
+          <p>Projects by discipline and daily field logs of activities, samples and the data collected.</p>
+        </article>
       </div>
     </div>
   </section>
 
-  <section id="how" class="lp-section">
-    <div class="container lp-container">
-      <div class="lp-section-head">
-        <span class="lp-eyebrow">How it works</span>
-        <h2>From sensor to decision in three steps</h2>
-      </div>
-      <div class="lp-steps">
-        <div class="lp-step"><span class="lp-step-num">1</span><span class="mega-icon bg-blue"><i class="bi bi-cpu"></i></span><h3>Stations send data</h3><p>A gateway at each station collects automatic weather station and power-plant readings and sends them over VSAT. Readings are buffered while the link is down.</p></div>
-        <div class="lp-step"><span class="lp-step-num">2</span><span class="mega-icon bg-red"><i class="bi bi-shield-exclamation"></i></span><h3>Rules check every reading</h3><p>Alert rules flag blizzards, extreme cold, whiteouts, low fuel and low battery, open an incident and email HQ and the station leader.</p></div>
-        <div class="lp-step"><span class="lp-step-num">3</span><span class="mega-icon bg-teal"><i class="bi bi-display"></i></span><h3>HQ and teams act</h3><p>Everyone works from the same live dashboard: acknowledge incidents, plan resupply, schedule maintenance and file SITREPs.</p></div>
+  <!-- 03 / Signal path -->
+  <section class="sec" id="how" aria-labelledby="sec-signal">
+    <div class="shell">
+      <header class="sec-head">
+        <div class="sec-index mono"><span class="n">03</span><span class="rule"></span><span>Signal path</span></div>
+        <h2 class="sec-title" id="sec-signal" data-fx="split">From sensor to <em>decision</em>.</h2>
+        <p class="sec-lead" data-fx="fade" data-delay="200">Readings leave the station gateway over the satellite link, pass five alert rules and reach HQ and the station team within a minute.</p>
+      </header>
+      <div class="sigpath" data-fx="reveal">
+        <div class="bus mono" aria-hidden="true">
+          <span class="line"></span><span class="drop"></span><span class="drop"></span><span class="drop"></span><span class="drop"></span>
+          <span class="lbl">VSAT · bulk upload</span><span class="lbl">Rules · under 1 s</span><span class="lbl">Email · HQ + leader</span>
+          <span class="pkt"></span><span class="pkt"></span><span class="pkt"></span>
+        </div>
+        <ol class="nodes">
+          <li class="node">
+            <div class="top mono"><span class="idx">S-01</span><span class="ico"><i class="ph-light ph-cpu"></i></span></div>
+            <h3>Station gateway</h3>
+            <p>A gateway PC at each station collects weather-station and power-plant readings, and buffers them while the link is down.</p>
+            <p class="spec mono">Store and forward</p>
+          </li>
+          <li class="node">
+            <div class="top mono"><span class="idx">S-02</span><span class="ico"><i class="ph-light ph-broadcast"></i></span></div>
+            <h3>VSAT uplink</h3>
+            <p>Readings go up in bulk with a station token. A batch that is resent after a dropped link is skipped, never duplicated.</p>
+            <p class="spec mono">Token auth · idempotent</p>
+          </li>
+          <li class="node">
+            <div class="top mono"><span class="idx">S-03</span><span class="ico"><i class="ph-light ph-siren"></i></span></div>
+            <h3>Alert rules</h3>
+            <p>Blizzard, extreme cold, whiteout, low fuel and low battery rules open an incident and email HQ and the station leader.</p>
+            <p class="spec mono">5 rules · 6 h de-dupe</p>
+          </li>
+          <li class="node">
+            <div class="top mono"><span class="idx">S-04</span><span class="ico"><i class="ph-light ph-chart-line"></i></span></div>
+            <h3>HQ and teams</h3>
+            <p>Everyone works from the same live deck: acknowledge incidents, plan resupply, schedule repairs and file SITREPs.</p>
+            <p class="spec mono">60 s refresh</p>
+          </li>
+        </ol>
       </div>
     </div>
   </section>
 
-  <section id="roles" class="lp-section lp-section-alt">
-    <div class="container lp-container">
-      <div class="row g-5 align-items-center">
-        <div class="col-lg-5">
-          <span class="lp-eyebrow">Secure by design</span>
-          <h2 class="lp-h2">The right view for every role</h2>
-          <p class="lp-muted">Sign-in is required everywhere. Each page and API call is filtered by station, and a sensor token can only write data for its own station.</p>
-          <ul class="lp-checks">
-            <li><i class="bi bi-check-circle-fill"></i> Works on slow satellite links: light pages, one small refresh call a minute</li>
-            <li><i class="bi bi-check-circle-fill"></i> Keeps the last known values when the link drops</li>
-            <li><i class="bi bi-check-circle-fill"></i> CSV export of every list for offline reports</li>
+  <!-- 04 / Access -->
+  <section class="sec" id="roles" aria-labelledby="sec-access">
+    <div class="shell">
+      <header class="sec-head">
+        <div class="sec-index mono"><span class="n">04</span><span class="rule"></span><span>Access</span></div>
+        <h2 class="sec-title" id="sec-access" data-fx="split">The right view for <em>every</em> role.</h2>
+      </header>
+      <div class="access">
+        <div class="access-copy" data-fx="fade">
+          <p>Sign-in is required everywhere. Every page and every API call is filtered by station, medical records stay with the people who need them, and a sensor token can only upload readings for its own station.</p>
+          <ul class="checks">
+            <li>Light pages and one small refresh call a minute, for thin satellite links</li>
+            <li>The last known values stay on screen when the link drops</li>
+            <li>Every list exports to CSV for offline reports</li>
           </ul>
         </div>
-        <div class="col-lg-7">
-          <div class="lp-roles">
-            <div class="lp-role"><span class="mega-icon bg-blue"><i class="bi bi-globe-asia-australia"></i></span><div><h3>HQ administrators</h3><p>See and manage every station, expedition and incident.</p></div></div>
-            <div class="lp-role"><span class="mega-icon bg-teal"><i class="bi bi-person-badge"></i></span><div><h3>Station leaders</h3><p>Run their station: SITREPs, crew, stores and incidents.</p></div></div>
-            <div class="lp-role"><span class="mega-icon bg-red"><i class="bi bi-heart-pulse"></i></span><div><h3>Medical officers</h3><p>Record vitals and fitness for duty for their team.</p></div></div>
-            <div class="lp-role"><span class="mega-icon bg-amber"><i class="bi bi-wrench-adjustable"></i></span><div><h3>Engineers &amp; logistics</h3><p>Look after equipment, maintenance, fuel and resupply.</p></div></div>
-            <div class="lp-role"><span class="mega-icon bg-violet"><i class="bi bi-binoculars"></i></span><div><h3>Scientists</h3><p>Track research projects and daily field logs.</p></div></div>
-            <div class="lp-role"><span class="mega-icon bg-slate"><i class="bi bi-cpu"></i></span><div><h3>Sensor gateways</h3><p>Token-only accounts that post readings for one station.</p></div></div>
+        <div class="matrix-wrap" data-fx="fade" data-delay="150">
+          <table class="matrix">
+            <caption class="sr-only">Access by role: all stations, own station only, or no access</caption>
+            <thead>
+              <tr>
+                <th scope="col"><span class="sr-only">Role</span></th>
+                <th scope="col"><span>Stations · SITREP</span></th><th scope="col"><span>Telemetry</span></th><th scope="col"><span>Incidents</span></th>
+                <th scope="col"><span>Crew</span></th><th scope="col"><span>Medical</span></th><th scope="col"><span>Stores</span></th>
+                <th scope="col"><span>Equipment</span></th><th scope="col"><span>Research</span></th><th scope="col"><span>Sensor API</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">HQ administrator<small>NCPOR, Goa</small></th>{% for i in "123456789" %}<td><span class="cell all" title="All stations"></span></td>{% endfor %}</tr>
+              <tr><th scope="row">Station leader<small>Own station</small></th>{% for i in "123456789" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}</tr>
+              <tr><th scope="row">Medical officer<small>Own station</small></th>{% for i in "123456789" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}</tr>
+              <tr><th scope="row">Engineer<small>Own station</small></th>{% for i in "1234" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}<td><span class="cell no" title="No access"></span></td>{% for i in "1234" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}</tr>
+              <tr><th scope="row">Logistics officer<small>Own station</small></th>{% for i in "1234" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}<td><span class="cell no" title="No access"></span></td>{% for i in "1234" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}</tr>
+              <tr><th scope="row">Scientist<small>Own station</small></th>{% for i in "1234" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}<td><span class="cell no" title="No access"></span></td>{% for i in "1234" %}<td><span class="cell own" title="Own station"></span></td>{% endfor %}</tr>
+              <tr><th scope="row">Sensor gateway<small>Token only</small></th>{% for i in "12345678" %}<td><span class="cell no" title="No access"></span></td>{% endfor %}<td><span class="cell own" title="Own station, upload only"></span></td></tr>
+            </tbody>
+          </table>
+          <div class="matrix-legend mono">
+            <span><span class="cell all"></span>All stations</span><span><span class="cell own"></span>Own station</span><span><span class="cell no"></span>No access</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="lp-section">
-    <div class="container lp-container">
-      <div class="lp-final">
-        <div class="lp-aurora" aria-hidden="true"></div>
-        <div class="position-relative">
-          <h2>Ready for today's watch?</h2>
-          <p>Sign in with your NCPOR or station account to open the command dashboard.</p>
-          {% if user.is_authenticated %}
-            <a class="btn btn-ice btn-lg" href="{% url 'core:dashboard' %}">Open dashboard <i class="bi bi-arrow-right"></i></a>
-          {% else %}
-            <a class="btn btn-ice btn-lg" href="{% url 'accounts:login' %}">Sign in <i class="bi bi-arrow-right"></i></a>
-          {% endif %}
-        </div>
+  <!-- closing -->
+  <section class="sec" aria-labelledby="sec-close">
+    <div class="shell closing">
+      <div class="cold" aria-hidden="true"><span>Cold</span><span>Cold</span><span>Cold</span></div>
+      <div class="closing-copy" data-fx="fade">
+        <span class="mono muted">05 / Watch</span>
+        <h2 id="sec-close">Ready for today's watch?</h2>
+        <p>Sign in with your NCPOR or station account to open the command deck.</p>
+        {% if user.is_authenticated %}
+          <a class="po-btn" data-fx="magnet" href="{% url 'core:dashboard' %}"><span class="spark" aria-hidden="true"></span>Open dashboard <i class="ph-light ph-arrow-right"></i></a>
+        {% else %}
+          <a class="po-btn" data-fx="magnet" href="{% url 'accounts:login' %}"><span class="spark" aria-hidden="true"></span>Sign in <i class="ph-light ph-arrow-right"></i></a>
+        {% endif %}
       </div>
     </div>
   </section>
 </main>
 
-<footer class="lp-footer">
-  <div class="container lp-container">
-    <div class="brand-link"><span class="brand-mark"><i class="bi bi-snow2"></i></span><span><span class="brand-name">PolarOps</span><span class="brand-sub">Indian Antarctic Stations</span></span></div>
-    <p>A digital platform for remote management of the Indian Antarctic research stations.<br>Station names and coordinates are public information.</p>
+<footer class="colophon">
+  <div class="shell">
+    <div class="colophon-grid">
+      <div>
+        <a href="{% url 'core:landing' %}" class="po-brand"><span class="seal" aria-hidden="true"><span>PO</span></span><span><span class="po-brand-name">PolarOps</span><span class="po-brand-sub mono">Indian Antarctic Stations</span></span></a>
+        <p style="margin-top: 1rem; max-width: 40ch;">A digital platform for remote management of the Indian Antarctic research stations.</p>
+      </div>
+      <div><h4>Index</h4><ul><li><a href="#stations">01 Network</a></li><li><a href="#features">02 Modules</a></li><li><a href="#how">03 Signal path</a></li><li><a href="#roles">04 Access</a></li></ul></div>
+      <div><h4>Colophon</h4><p>Set in Unbounded, Instrument Sans and JetBrains Mono. Map tiles by Esri. Drawn on snow paper.</p></div>
+      <div><h4>Data</h4><p>Station names and coordinates are public information. Everything else stays behind sign-in.</p></div>
+    </div>
+    <div class="colophon-base mono"><span>© {% now "Y" %} PolarOps — NCPOR · Ministry of Earth Sciences</span><span>End of sheet</span></div>
   </div>
 </footer>
+</div>
 
 {{ map_points|json_script:"map-data" }}
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/polarops.js' %}?v=8"></script>
+<script src="{% static 'js/globe.js' %}?v=3"></script>
+<script src="{% static 'js/polarops.js' %}?v=9"></script>
 <script>
-  polarStationMap("lp-map", JSON.parse(document.getElementById("map-data").textContent));
+  const stationPoints = JSON.parse(document.getElementById("map-data").textContent);
+  const sheetFor = code => document.getElementById("station-" + code);
+  PolarGlobe.mount(document.getElementById("po-globe"), stationPoints, {
+    hud: true,
+    onSelect: st => (sheetFor(st.code) || document.getElementById("stations")).scrollIntoView({ behavior: "smooth", block: "center" }),
+  });
+  polarStationMap("lp-map", stationPoints);
+
+  // datasheet <-> map marker highlighting
+  document.querySelectorAll(".dsheet").forEach(sheet => {
+    const code = sheet.dataset.station;
+    sheet.addEventListener("mouseenter", () => { sheet.classList.add("is-hot"); polarFocusStation("lp-map", code, true); });
+    sheet.addEventListener("mouseleave", () => { sheet.classList.remove("is-hot"); polarFocusStation("lp-map", code, false); });
+  });
+  document.getElementById("lp-map").addEventListener("station-hover", e => {
+    const sheet = sheetFor(e.detail.code);
+    if (sheet) sheet.classList.toggle("is-hot", e.detail.on);
+  });
 </script>
 {% endblock %}

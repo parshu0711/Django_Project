@@ -78,11 +78,10 @@ def badge_colour(value, field=""):
 def cell(obj, accessor, badge_fields=(), link=None):
     display, raw = resolve(obj, accessor)
     if isinstance(raw, bool):
-        icon = "bi-check-circle-fill text-success" if raw else "bi-x-circle-fill text-danger"
-        return format_html('<i class="bi {}" title="{}"></i>', icon, "Yes" if raw else "No")
+        return format_html('<span class="bool {}">{}</span>', "yes" if raw else "no", "Yes" if raw else "No")
     text = format_value(display)
     if accessor in badge_fields and raw not in (None, ""):
-        html = format_html('<span class="pill pill-{}">{}</span>', badge_colour(raw, accessor), text)
+        html = format_html('<span class="tag tag-{}">{}</span>', badge_colour(raw, accessor), text)
     else:
         html = format_html("{}", text)
     if link:
@@ -104,7 +103,7 @@ def object_fields(obj, badge_fields=(), exclude=()):
         elif wide and raw:
             html = linebreaksbr(raw, autoescape=True)
         elif field.name in badge_fields and raw:
-            html = format_html('<span class="pill pill-{}">{}</span>', badge_colour(raw, field.name), display)
+            html = format_html('<span class="tag tag-{}">{}</span>', badge_colour(raw, field.name), display)
         elif isinstance(raw, models.Model) and hasattr(raw, "get_absolute_url"):
             html = format_html('<a href="{}">{}</a>', raw.get_absolute_url(), raw)
         else:
@@ -167,3 +166,41 @@ def ago(value):
         return f"{hours} h ago"
     return f"{hours // 24} days ago"
 
+
+
+@register.simple_tag
+def station_points(station=None):
+    """Public station facts for the wireframe globe (login page, station header).
+
+    Only names, codes, coordinates, status and founding year: never operational data.
+    """
+    from stations.models import Station
+
+    stations = [station] if station is not None else Station.objects.all()
+    return [
+        {
+            "name": s.name,
+            "code": s.code,
+            "lat": float(s.latitude),
+            "lng": float(s.longitude),
+            "status": s.status,
+            "status_label": s.get_status_display(),
+            "established": s.established,
+        }
+        for s in stations
+    ]
+
+
+@register.filter
+def dms(value, axis="lat"):
+    """Decimal degrees -> 70°46′S style. axis is "lat" or "lng"."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return ""
+    a = abs(v)
+    d, m = int(a), round((a - int(a)) * 60)
+    if m == 60:
+        d, m = d + 1, 0
+    hemi = ("S" if v < 0 else "N") if axis == "lat" else ("W" if v < 0 else "E")
+    return f"{d}°{m:02d}′{hemi}"

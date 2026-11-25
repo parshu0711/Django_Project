@@ -46,7 +46,7 @@ def model_has_field(model, name):
 
 
 def style_form(form):
-    """Apply Bootstrap classes and HTML5 date pickers to every field."""
+    """Apply the PolarOps field classes and HTML5 date pickers to every field."""
     for field in form.fields.values():
         if isinstance(field, forms.DateTimeField):
             field.widget = forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M")
@@ -56,11 +56,11 @@ def style_form(form):
             field.widget.is_required = field.required
         widget = field.widget
         if isinstance(widget, forms.CheckboxInput):
-            css = "form-check-input"
+            css = "field-check"
         elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
-            css = "form-select"
+            css = "field-select"
         else:
-            css = "form-control"
+            css = "field"
         widget.attrs["class"] = f"{widget.attrs.get('class', '')} {css}".strip()
         if isinstance(widget, forms.Textarea):
             widget.attrs["rows"] = 3

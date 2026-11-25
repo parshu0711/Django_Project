@@ -16,7 +16,7 @@ stores and resupply, equipment maintenance and research projects.
 | **Python** | 3.10 or newer (tested on 3.14) | Runs Django |
 | **pip** + **venv** | ships with Python | Installs the packages below |
 | **Web browser** | any modern browser | The user interface |
-| **Internet access** (development) | - | Bootstrap, Chart.js and Leaflet load from a CDN; map tiles come from Esri (no key needed) |
+| **Internet access** (development) | - | Fonts, icons, Chart.js and Leaflet load from a CDN; map tiles come from Esri (no key needed) |
 | PostgreSQL *(optional)* | 14 or newer | Recommended production database (SQLite is used by default) |
 
 You don't need API keys, paid services or Docker.
@@ -33,7 +33,21 @@ You don't need API keys, paid services or Docker.
 
 ### Front-end libraries (loaded from CDN, no install)
 
-Bootstrap 5.3 (layout), Bootstrap Icons, Chart.js 4 (telemetry charts), Leaflet 1.9 (station map).
+Chart.js 4 (telemetry charts), Leaflet 1.9 (station map), Phosphor Icons (light) and Google Fonts
+(Unbounded, Instrument Sans, JetBrains Mono).
+
+The interface has no CSS framework. It uses a small hand-written "snow paper" design system:
+
+| File | What it holds |
+|---|---|
+| `static/css/polarops.css` | Design tokens (palette, type), buttons, fields, tags, tables, the app shell, dashboard instruments, motion |
+| `static/css/landing.css` | Landing page and login art direction |
+| `static/js/globe.js` | The hand-drawn wireframe "ice dome" globe (canvas 2D, no 3D library) |
+| `static/js/fx.js` | Text and hover effects: split reveal, decrypt, rotating text, count-up, magnet, tilt |
+| `static/js/ui.js` | Dropdown menus, the mobile drawer, dismissible notices, live clocks |
+| `static/js/polarops.js` | Chart and map helpers and the dashboard's live polling |
+
+Every animation stops for visitors who prefer reduced motion.
 
 ### Station maps: Google Maps (optional)
 
