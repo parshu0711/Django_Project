@@ -24,3 +24,17 @@ def navigation(request):
     if not user.is_hq:
         qs = qs.filter(station_id=user.station_id)
     return {"nav_open_incidents": qs.count()}
+
+
+def platform(request):
+    """Alert thresholds, so chart threshold lines match the alert rules."""
+    alerts = settings.POLAROPS_ALERTS
+    return {
+        "ALERT_THRESHOLDS": {
+            "wind_kmh": alerts["WIND_KMH"],
+            "temp_c": alerts["TEMP_C"],
+            "visibility_km": alerts["VISIBILITY_KM"],
+            "fuel_pct": alerts["FUEL_PCT"],
+            "battery_pct": alerts["BATTERY_PCT"],
+        },
+    }

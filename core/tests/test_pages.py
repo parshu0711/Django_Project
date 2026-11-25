@@ -1,5 +1,5 @@
 """Landing page, dashboard, top navigation and a smoke test of every page."""
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from core.testing import PolarFixtures
@@ -169,3 +169,62 @@ class PageSmokeTests(PolarFixtures, TestCase):
         response = self.client.get(reverse("inventory:item_list"), {"low": "1"})
         self.assertEqual(list(response.context["object_list"]), [self.bha_rice])
         self.assertEqual(response.context["title"], "Low-stock items")
+
+
+class ListAndLayoutFixTests(PolarFixtures, TestCase):
+    def test_boolean_filter_offers_yes_and_no(self):
+        self.login(self.hq)
+        filters = self.client.get(reverse("personnel:medical_list")).context["filters"]
+        fit = next(f for f in filters if f["name"] == "fit_for_duty")
+        self.assertEqual(list(fit["choices"]), [("True", "Yes"), ("False", "No")])
+
+    def test_boolean_filter_filters(self):
+        from personnel.models import MedicalCheck
+        fit = MedicalCheck.objects.create(member=self.mai_member, fit_for_duty=True)
+        unfit = MedicalCheck.objects.create(member=self.mai_member, fit_for_duty=False)
+        self.login(self.hq)
+        url = reverse("personnel:medical_list")
+        self.assertEqual(list(self.client.get(url, {"fit_for_duty": "False"}).context["object_list"]), [unfit])
+        self.assertEqual(list(self.client.get(url, {"fit_for_duty": "True"}).context["object_list"]), [fit])
+
+    @override_settings(POLAROPS_ALERTS={"WIND_KMH": 85, "TEMP_C": -50, "VISIBILITY_KM": 0.2, "FUEL_PCT": 30,
+                                        "BATTERY_PCT": 15, "DEDUPE_HOURS": 6})
+    def test_chart_thresholds_follow_the_alert_settings(self):
+        self.login(self.hq)
+        for url in (reverse("core:dashboard"), self.mai.get_absolute_url()):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, 'id="alert-thresholds"')
+                self.assertContains(response, '"wind_kmh": 85')
+                self.assertContains(response, '"fuel_pct": 30')
+                self.assertNotContains(response, "threshold: 100")
+
+    @override_settings(TIME_ZONE="UTC")
+    def test_footer_shows_the_configured_time_zone(self):
+        self.login(self.hq)
+        response = self.client.get(reverse("core:dashboard"))
+        self.assertContains(response, "All times UTC")
+        self.assertNotContains(response, "All times IST")
+
+    def test_csv_export_neutralises_formulas_but_keeps_negative_numbers(self):
+        from telemetry.models import WeatherReading
+        Incident.objects.create(station=self.mai, title='=HYPERLINK("http://evil","click")', description="x")
+        WeatherReading.objects.create(station=self.mai, temperature_c=-12.4, wind_speed_kmh=5, pressure_hpa=980)
+        self.login(self.hq)
+        incidents = self.client.get(reverse("operations:incident_list"), {"export": "csv"}).content.decode()
+        self.assertIn("'=HYPERLINK", incidents)
+        weather = self.client.get(reverse("telemetry:weather_list"), {"export": "csv"}).content.decode()
+        self.assertIn(",-12.4,", weather)
+        self.assertNotIn("'-12.4", weather)
+
+
+class CsvSafeTests(SimpleTestCase):
+    def test_csv_safe(self):
+        from core.mixins import csv_safe
+        self.assertEqual(csv_safe("=1+1"), "'=1+1")
+        self.assertEqual(csv_safe("+cmd"), "'+cmd")
+        self.assertEqual(csv_safe("@SUM(A1)"), "'@SUM(A1)")
+        self.assertEqual(csv_safe("-12.4"), "-12.4")
+        self.assertEqual(csv_safe("-1,500.5"), "-1,500.5")
+        self.assertEqual(csv_safe("Maitri"), "Maitri")
+        self.assertEqual(csv_safe("—"), "—")

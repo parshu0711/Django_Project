@@ -34,6 +34,9 @@ class Item(models.Model):
     class Meta:
         ordering = ["station__name", "category", "name"]
         unique_together = [("station", "name")]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantity__gte=0), name="item_quantity_not_negative"),
+        ]
         verbose_name = "stock item"
 
     def __str__(self):
@@ -73,16 +76,22 @@ class StockMovement(models.Model):
         sign = "+" if self.kind == self.Kind.IN else "-"
         return f"{sign}{self.quantity} {self.item.unit} {self.item.name}"
 
+    def _check_stock(self, item):
+        if self.kind == self.Kind.OUT and self.quantity and self.quantity > item.quantity:
+            raise ValidationError(
+                {"quantity": f"Only {item.quantity.normalize():f} {item.unit} of {item.name} in stock."}
+            )
+
     def clean(self):
-        if self.kind == self.Kind.OUT and self.item_id and self.quantity and self._state.adding:
-            if self.quantity > self.item.quantity:
-                raise ValidationError(
-                    {"quantity": f"Only {self.item.quantity.normalize():f} {self.item.unit} of {self.item.name} in stock."}
-                )
+        if self.item_id and self._state.adding:
+            self._check_stock(self.item)
 
     def save(self, *args, **kwargs):
         is_new = self._state.adding
         with transaction.atomic():
+            if is_new:
+                # lock the item row so two simultaneous issues can't both pass the stock check
+                self._check_stock(Item.objects.select_for_update().get(pk=self.item_id))
             super().save(*args, **kwargs)
             if is_new:
                 delta = self.quantity if self.kind == self.Kind.IN else -self.quantity

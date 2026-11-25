@@ -1,13 +1,15 @@
 """Stock levels, the movement audit trail and the no-negative-stock rule."""
 from decimal import Decimal
 
+from django.contrib import admin
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.db import IntegrityError, transaction
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from core.testing import PolarFixtures
 
-from .models import StockMovement
+from .models import Item, StockMovement
 
 
 class StockMovementTests(PolarFixtures, TestCase):
@@ -87,3 +89,39 @@ class StockMovementFormTests(PolarFixtures, TestCase):
         self.login(self.mai_leader)
         rows = self.client.get(reverse("inventory:movement_list")).context["object_list"]
         self.assertEqual([m.item for m in rows], [self.mai_diesel])
+
+
+class StockIntegrityTests(PolarFixtures, TestCase):
+    def test_save_rechecks_stock_even_without_clean(self):
+        # a second issue that passed clean() against a stale stock figure is still refused at save()
+        with self.assertRaises(ValidationError):
+            StockMovement.objects.create(item=self.mai_diesel, kind="OUT", quantity=Decimal("501"))
+        self.mai_diesel.refresh_from_db()
+        self.assertEqual(self.mai_diesel.quantity, Decimal("500"))
+        self.assertFalse(StockMovement.objects.exists())
+
+    def test_database_refuses_negative_stock(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Item.objects.filter(pk=self.mai_diesel.pk).update(quantity=Decimal("-1"))
+
+    def test_item_station_cannot_be_changed_after_creation(self):
+        self.login(self.hq)
+        form = self.client.get(reverse("inventory:item_edit", args=[self.mai_diesel.pk])).context["form"]
+        self.assertNotIn("station", form.fields)
+
+
+class StockAdminTests(PolarFixtures, TestCase):
+    def setUp(self):
+        self.request = RequestFactory().get("/admin/")
+        self.request.user = self.hq
+
+    def test_quantity_is_read_only_after_creation(self):
+        model_admin = admin.site._registry[Item]
+        self.assertIn("quantity", model_admin.get_readonly_fields(self.request, self.mai_diesel))
+        self.assertNotIn("quantity", model_admin.get_readonly_fields(self.request, None))
+
+    def test_movements_cannot_be_edited_or_deleted(self):
+        movement = StockMovement.objects.create(item=self.mai_diesel, kind="IN", quantity=Decimal("1"))
+        model_admin = admin.site._registry[StockMovement]
+        self.assertFalse(model_admin.has_change_permission(self.request, movement))
+        self.assertFalse(model_admin.has_delete_permission(self.request, movement))

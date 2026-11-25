@@ -161,17 +161,19 @@
 
 {{ chart_data|json_script:"chart-data" }}
 {{ map_points|json_script:"map-data" }}
+{{ ALERT_THRESHOLDS|json_script:"alert-thresholds" }}
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/polarops.js' %}?v=6"></script>
+<script src="{% static 'js/polarops.js' %}?v=7"></script>
 <script>
   const chartData = JSON.parse(document.getElementById("chart-data").textContent);
-  polarLineChart("chart-temp", chartData.temperature, { unit: "°C" });
-  polarLineChart("chart-wind", chartData.wind, { unit: "km/h", threshold: 100 });
-  polarLineChart("chart-fuel", chartData.fuel, { unit: "%", min: 0, max: 100, threshold: 20 });
+  const limits = JSON.parse(document.getElementById("alert-thresholds").textContent);
+  polarLineChart("chart-temp", chartData.temperature, { unit: "°C", threshold: limits.temp_c });
+  polarLineChart("chart-wind", chartData.wind, { unit: "km/h", threshold: limits.wind_kmh });
+  polarLineChart("chart-fuel", chartData.fuel, { unit: "%", min: 0, max: 100, threshold: limits.fuel_pct });
   polarStationMap("station-map", JSON.parse(document.getElementById("map-data").textContent));
   startLivePolling("{% url 'api-live' %}");
 </script>

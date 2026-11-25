@@ -207,6 +207,7 @@ function startLivePolling(url, everyMs = 60000) {
     });
   };
   async function tick() {
+    if (document.hidden) return;   // don't spend satellite bandwidth on a background tab
     try {
       const r = await fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin" });
       if (!r.ok) return;
@@ -235,4 +236,6 @@ function startLivePolling(url, everyMs = 60000) {
     }
   }
   setInterval(tick, everyMs);
+  // refresh straight away when the user comes back to the tab
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 }

@@ -8,12 +8,16 @@ POST /api/weather/ and /api/power/ accept a single reading or a JSON list of
 readings, so a station gateway can buffer data while the satellite link is
 down and upload it in one batch when the link returns (store-and-forward).
 """
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.encoding import smart_str
 from rest_framework import mixins, serializers, status, viewsets
+from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from inventory.models import Item
 from operations.models import Incident
@@ -23,9 +27,29 @@ from telemetry.models import PowerReading, WeatherReading
 
 # ---------------------------------------------------------------- helpers
 class StationCodeField(serializers.SlugRelatedField):
+    """Station given by its code. Case-insensitive, so gateways may send "mai" or "MAI"."""
+
     def __init__(self, **kwargs):
         kwargs.setdefault("queryset", Station.objects.all())
         super().__init__(slug_field="code", **kwargs)
+
+    def to_internal_value(self, data):
+        try:
+            return self.get_queryset().get(code__iexact=str(data).strip())
+        except Station.DoesNotExist:
+            self.fail("does_not_exist", slug_name=self.slug_field, value=smart_str(data))
+        except (TypeError, ValueError):
+            self.fail("invalid")
+
+
+class TokenThrottle(AnonRateThrottle):
+    scope = "token"
+
+
+class ObtainTokenView(ObtainAuthToken):
+    """POST username + password -> API token. Rate limited to slow down password guessing."""
+
+    throttle_classes = [TokenThrottle]
 
 
 class OwnStationMixin:
@@ -47,19 +71,85 @@ class ScopedQuerysetMixin:
         code = self.request.query_params.get("station")
         if code:
             qs = qs.filter(**{f"{self.station_field}__code__iexact": code})
-        since = parse_datetime(self.request.query_params.get("since", "") or "")
+        since = self.parse_since()
         if since and hasattr(qs.model, "recorded_at"):
             qs = qs.filter(recorded_at__gte=since)
         return qs
 
+    def parse_since(self):
+        raw = (self.request.query_params.get("since") or "").strip()
+        if not raw:
+            return None
+        try:
+            since = parse_datetime(raw)
+        except ValueError:      # well-formed but impossible, e.g. month 13
+            since = None
+        if since is None:
+            raise serializers.ValidationError(
+                {"since": "Use an ISO 8601 date-time, for example 2026-11-19T00:00:00Z."}
+            )
+        if timezone.is_naive(since):
+            since = timezone.make_aware(since)
+        return since
+
 
 class BulkCreateMixin:
+    """
+    POST one reading or a list of readings. Uploads are idempotent: a reading whose
+    (station, recorded_at) is already stored is skipped rather than rejected, so a
+    gateway can safely resend its whole buffer after the satellite link drops mid-upload.
+    """
+
+    sensor_writable = True
+
     def create(self, request, *args, **kwargs):
         many = isinstance(request.data, list)
         serializer = self.get_serializer(data=request.data, many=many)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        rows = serializer.validated_data if many else [serializer.validated_data]
+        create_one = serializer.child.create if many else serializer.create
+        model = self.get_queryset().model
+
+        stored = self._existing_keys(model, rows)
+        created, skipped = [], 0
+        for row in rows:
+            key = (row["station"].pk, row.get("recorded_at"))
+            if key[1] is not None and key in stored:
+                skipped += 1
+                continue
+            try:
+                with transaction.atomic():
+                    created.append(create_one(row))
+            except IntegrityError:     # the same reading arrived concurrently
+                skipped += 1
+                continue
+            if key[1] is not None:
+                stored.add(key)
+
+        if not many:
+            if created:
+                return Response(self.get_serializer(created[0]).data, status=status.HTTP_201_CREATED)
+            row = rows[0]
+            existing = model.objects.get(station=row["station"], recorded_at=row["recorded_at"])
+            return Response(self.get_serializer(existing).data, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "created": len(created),
+                "skipped": skipped,
+                "results": self.get_serializer(created, many=True).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @staticmethod
+    def _existing_keys(model, rows):
+        stamps = [r["recorded_at"] for r in rows if r.get("recorded_at")]
+        if not stamps:
+            return set()
+        stations = {r["station"].pk for r in rows}
+        return set(
+            model.objects.filter(station__in=stations, recorded_at__in=stamps).values_list("station_id", "recorded_at")
+        )
 
 
 # ------------------------------------------------------------ serializers
@@ -81,6 +171,7 @@ class WeatherReadingSerializer(OwnStationMixin, serializers.ModelSerializer):
             "id", "station", "recorded_at", "temperature_c", "wind_speed_kmh", "wind_direction_deg",
             "pressure_hpa", "humidity_pct", "visibility_km", "source",
         ]
+        validators = []   # duplicates are skipped by BulkCreateMixin, not rejected
 
 
 class PowerReadingSerializer(OwnStationMixin, serializers.ModelSerializer):
@@ -93,6 +184,7 @@ class PowerReadingSerializer(OwnStationMixin, serializers.ModelSerializer):
             "id", "station", "recorded_at", "generator_kw", "solar_kw", "wind_kw", "load_kw",
             "fuel_level_pct", "battery_pct", "renewable_pct",
         ]
+        validators = []   # duplicates are skipped by BulkCreateMixin, not rejected
 
 
 class IncidentSerializer(OwnStationMixin, serializers.ModelSerializer):
@@ -106,6 +198,13 @@ class IncidentSerializer(OwnStationMixin, serializers.ModelSerializer):
             "reported_by", "reported_at", "resolved_at", "auto_generated",
         ]
         read_only_fields = ["resolved_at", "auto_generated"]
+
+    def validate_status(self, value):
+        user = self.context["request"].user
+        current = self.instance.status if self.instance else None
+        if value == Incident.Status.ACKNOWLEDGED and value != current and not user.is_hq:
+            raise serializers.ValidationError("Only HQ can acknowledge an incident.")
+        return value
 
 
 class ItemSerializer(serializers.ModelSerializer):

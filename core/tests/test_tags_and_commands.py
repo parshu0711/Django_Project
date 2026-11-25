@@ -83,3 +83,26 @@ class SeedDemoCommandTests(TestCase):
         call_command("seed_demo", reset=True, stdout=StringIO())
         self.assertEqual(Station.objects.count(), 3)
         self.assertEqual(get_user_model().objects.filter(username="hq_admin").count(), 1)
+
+
+class SystemCheckTests(TestCase):
+    def test_demo_mode_without_debug_is_an_error(self):
+        from django.test import override_settings
+
+        from core.checks import demo_mode_check
+        with override_settings(DEMO_MODE=True, DEBUG=False, TESTING=False):
+            self.assertEqual([e.id for e in demo_mode_check(None)], ["polarops.E001"])
+        with override_settings(DEMO_MODE=False, DEBUG=False, TESTING=False):
+            self.assertEqual(demo_mode_check(None), [])
+        with override_settings(DEMO_MODE=True, DEBUG=True, TESTING=False):
+            self.assertEqual(demo_mode_check(None), [])
+
+    def test_station_codes_are_stored_upper_case(self):
+        station = Station.objects.create(name="Himadri", code=" him ", latitude=78.9, longitude=11.9)
+        self.assertEqual(station.code, "HIM")
+
+    def test_seeded_sensor_accounts_are_sensors(self):
+        call_command("seed_demo", stdout=StringIO())
+        sensor = get_user_model().objects.get(username="sensor_maitri")
+        self.assertTrue(sensor.is_sensor)
+        self.assertFalse(sensor.has_usable_password())

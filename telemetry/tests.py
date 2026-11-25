@@ -1,6 +1,7 @@
 """Automatic alert rules (telemetry/alerts.py) fired from sensor readings."""
 from datetime import timedelta
 
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -110,3 +111,27 @@ class PowerReadingModelTests(PolarFixtures, TestCase):
 
     def test_renewable_share_with_no_generation(self):
         self.assertEqual(PowerReading(station=self.mai, fuel_level_pct=50).renewable_pct, 0.0)
+
+
+@override_settings(POLAROPS_ALERTS=ALERTS)
+class BackfillAndDuplicateTests(PolarFixtures, TestCase):
+    def test_old_backfilled_reading_is_stored_without_raising_an_alert(self):
+        old = timezone.now() - timedelta(hours=7)
+        weather(self.mai, wind_speed_kmh=150, recorded_at=old)
+        power(self.mai, fuel_level_pct=5, recorded_at=old)
+        self.assertEqual(WeatherReading.objects.count(), 1)
+        self.assertFalse(Incident.objects.filter(auto_generated=True).exists())
+
+    def test_recent_backfilled_reading_still_alerts(self):
+        weather(self.mai, wind_speed_kmh=150, recorded_at=timezone.now() - timedelta(hours=2))
+        self.assertTrue(Incident.objects.filter(auto_generated=True, title__startswith="Blizzard").exists())
+
+    def test_one_reading_per_station_and_time(self):
+        stamp = timezone.now()
+        weather(self.mai, recorded_at=stamp)
+        weather(self.bha, recorded_at=stamp)          # another station at the same time is fine
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            weather(self.mai, recorded_at=stamp)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            power(self.mai, recorded_at=stamp)
+            power(self.mai, recorded_at=stamp)

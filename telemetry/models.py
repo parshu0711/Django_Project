@@ -20,6 +20,9 @@ class WeatherReading(models.Model):
     class Meta:
         ordering = ["-recorded_at"]
         indexes = [models.Index(fields=["station", "-recorded_at"])]
+        constraints = [
+            models.UniqueConstraint(fields=["station", "recorded_at"], name="unique_weather_reading_per_time"),
+        ]
         verbose_name = "weather reading"
 
     def __str__(self):
@@ -39,6 +42,9 @@ class PowerReading(models.Model):
     class Meta:
         ordering = ["-recorded_at"]
         indexes = [models.Index(fields=["station", "-recorded_at"])]
+        constraints = [
+            models.UniqueConstraint(fields=["station", "recorded_at"], name="unique_power_reading_per_time"),
+        ]
         verbose_name = "power reading"
 
     def __str__(self):

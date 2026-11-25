@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.urls import reverse
 from django.utils import timezone
 
@@ -97,13 +97,16 @@ class MaintenanceTask(models.Model):
         return reverse("operations:task_detail", args=[self.pk])
 
     def save(self, *args, **kwargs):
-        if self.status == self.Status.DONE and not self.completed_at:
+        just_completed = self.status == self.Status.DONE and not self.completed_at
+        if just_completed:
             self.completed_at = timezone.now()
-            # completing a task counts as a service of the equipment
-            Equipment.objects.filter(pk=self.equipment_id).update(last_serviced_on=timezone.localdate())
         elif self.status != self.Status.DONE:
             self.completed_at = None
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if just_completed:
+                # completing a task counts as a service of the equipment
+                Equipment.objects.filter(pk=self.equipment_id).update(last_serviced_on=timezone.localdate())
 
 
 class Incident(models.Model):

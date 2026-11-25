@@ -39,7 +39,7 @@ class PolarFixtures:
         cls.mai_scientist = user("mai_scientist", R.SCIENTIST, cls.mai, email="sci@maitri.example.org")
         cls.bha_engineer = user("bha_engineer", R.ENGINEER, cls.bha)
         cls.unassigned = user("unassigned", R.SCIENTIST)
-        cls.mai_sensor = user("mai_sensor", R.ENGINEER, cls.mai)
+        cls.mai_sensor = user("mai_sensor", R.SENSOR, cls.mai)
         cls.mai_token = Token.objects.create(user=cls.mai_sensor)
 
         cls.expedition = Expedition.objects.create(code="ISEA-45", name="45th expedition", start_date=date(2025, 11, 1))

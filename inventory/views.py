@@ -42,8 +42,9 @@ class ItemCreate(ItemBase, CrudCreateView):
 
 
 class ItemUpdate(ItemBase, CrudUpdateView):
-    # quantity changes go through stock movements so there is an audit trail
-    fields = ["station", "name", "category", "unit", "min_threshold", "storage_location"]
+    # quantity changes go through stock movements so there is an audit trail, and the station is
+    # fixed so stock and its movement history can't silently move to another station
+    fields = ["name", "category", "unit", "min_threshold", "storage_location"]
 
 
 class ItemDetail(ItemBase, CrudDetailView):

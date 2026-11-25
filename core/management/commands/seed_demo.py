@@ -215,7 +215,7 @@ class Command(BaseCommand):
             users[username] = user
         for username, code in SENSOR_USERS:
             sensor = User(username=username, first_name="AWS gateway", last_name=stations[code].name,
-                          role=User.Role.ENGINEER, station=stations[code])
+                          role=User.Role.SENSOR, station=stations[code])
             sensor.set_unusable_password()
             sensor.save()
             Token.objects.create(user=sensor)

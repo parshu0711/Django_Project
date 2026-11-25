@@ -1,3 +1,5 @@
+from django import forms
+
 from core.mixins import CrudCreateView, CrudDetailView, CrudListView, CrudUpdateView
 
 from .models import Equipment, Incident, MaintenanceTask
@@ -88,9 +90,37 @@ INCIDENT_FIELDS = [
 ]
 
 
+class IncidentForm(forms.ModelForm):
+    """Station staff report and update incidents; only HQ can mark one as acknowledged."""
+
+    class Meta:
+        model = Incident
+        fields = INCIDENT_FIELDS
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_status(self):
+        status = self.cleaned_data["status"]
+        current = self.instance.status if self.instance.pk else None
+        if status == Incident.Status.ACKNOWLEDGED and status != current and self.user and not self.user.is_hq:
+            raise forms.ValidationError("Only HQ can acknowledge an incident. Leave it open, or mark it resolved.")
+        return status
+
+
 class IncidentBase:
     model = Incident
     url_base = "operations:incident"
+
+
+class IncidentFormBase(IncidentBase):
+    form_class = IncidentForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
 
 class IncidentList(IncidentBase, CrudListView):
@@ -112,14 +142,13 @@ class IncidentList(IncidentBase, CrudListView):
         return qs
 
 
-class IncidentCreate(IncidentBase, CrudCreateView):
-    fields = INCIDENT_FIELDS
+class IncidentCreate(IncidentFormBase, CrudCreateView):
     user_field = "reported_by"
     title = "Report an incident"
 
 
-class IncidentUpdate(IncidentBase, CrudUpdateView):
-    fields = INCIDENT_FIELDS
+class IncidentUpdate(IncidentFormBase, CrudUpdateView):
+    pass
 
 
 class IncidentDetail(IncidentBase, CrudDetailView):

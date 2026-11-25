@@ -31,6 +31,10 @@ class Station(models.Model):
     def get_absolute_url(self):
         return reverse("stations:station_detail", args=[self.pk])
 
+    def save(self, *args, **kwargs):
+        self.code = (self.code or "").strip().upper()   # sensors and the API look stations up by code
+        super().save(*args, **kwargs)
+
     @property
     def latest_weather(self):
         return self.weather_readings.order_by("-recorded_at").first()

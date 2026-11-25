@@ -1,5 +1,4 @@
 from django.urls import include, path
-from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework.routers import DefaultRouter
 
 from core import api
@@ -13,6 +12,6 @@ router.register("inventory", api.ItemViewSet)
 
 urlpatterns = [
     path("live/", api.live_status, name="api-live"),
-    path("auth/token/", obtain_auth_token, name="api-token"),
+    path("auth/token/", api.ObtainTokenView.as_view(), name="api-token"),
     path("", include(router.urls)),
 ]

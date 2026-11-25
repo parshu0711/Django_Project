@@ -1,3 +1,4 @@
+from accounts.models import User
 from core.mixins import CrudCreateView, CrudDetailView, CrudListView, CrudUpdateView
 
 from .models import Expedition, MedicalCheck, Member
@@ -44,6 +45,10 @@ class MemberDetail(MemberBase, CrudDetailView):
                     ("Weight", "weight_kg"), ("Fit for duty", "fit_for_duty")),
         "add": ("personnel:medical_create", "member"),
     },)
+
+    def get_related(self):
+        # medical checks are confidential: only HQ, station leaders and medical officers see them
+        return self.related if self.request.user.can_view_medical else ()
 
 
 # --------------------------------------------------------------- expeditions
@@ -94,6 +99,7 @@ class MedicalBase:
     model = MedicalCheck
     url_base = "personnel:medical"
     station_field = "member__station"
+    allowed_roles = {User.Role.MEDICAL, User.Role.STATION_LEADER}   # keep in step with User.can_view_medical
 
 
 class MedicalList(MedicalBase, CrudListView):

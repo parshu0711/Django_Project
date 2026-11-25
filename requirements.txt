@@ -4,3 +4,7 @@ python-dotenv>=1.0
 whitenoise>=6.7
 # PostgreSQL driver - only used when DB_ENGINE=postgres in .env
 psycopg[binary]>=3.2
+
+# ---- Production WSGI server (install the one for your OS) ----
+# gunicorn>=23.0      # Linux
+# waitress>=3.0       # Windows

@@ -81,3 +81,31 @@ class StationScopingTests(PolarFixtures, TestCase):
         self.login(self.mai_leader)
         form = self.client.get(reverse("inventory:movement_create"), {"item": self.mai_diesel.pk}).context["form"]
         self.assertEqual(str(form.initial["item"]), str(self.mai_diesel.pk))
+
+
+class MedicalConfidentialityTests(PolarFixtures, TestCase):
+    def test_scientist_and_engineer_cannot_open_medical_records(self):
+        for user in (self.mai_scientist, self.bha_engineer):
+            self.login(user)
+            for name in ("personnel:medical_list", "personnel:medical_create"):
+                with self.subTest(user=user.username, page=name):
+                    self.assertEqual(self.client.get(reverse(name)).status_code, 403)
+
+    def test_leader_medical_officer_and_hq_can(self):
+        from django.contrib.auth import get_user_model
+        doctor = get_user_model().objects.create_user("mai_doctor", role="MEDICAL", station=self.mai)
+        for user in (self.mai_leader, doctor, self.hq):
+            self.login(user)
+            with self.subTest(user=user.username):
+                self.assertEqual(self.client.get(reverse("personnel:medical_list")).status_code, 200)
+
+    def test_menu_and_member_page_hide_medical_checks_from_other_roles(self):
+        self.login(self.mai_scientist)
+        response = self.client.get(self.mai_member.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, reverse("personnel:medical_list"))
+        self.assertEqual(response.context["related_blocks"], [])
+        self.login(self.mai_leader)
+        response = self.client.get(self.mai_member.get_absolute_url())
+        self.assertContains(response, reverse("personnel:medical_list"))
+        self.assertEqual([b["title"] for b in response.context["related_blocks"]], ["Medical checks"])

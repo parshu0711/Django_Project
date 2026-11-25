@@ -47,8 +47,50 @@ class SensorUploadTests(PolarFixtures, TestCase):
         batch = [calm(recorded_at=(now - timedelta(hours=h)).isoformat()) for h in range(5)]
         response = self.post("/api/weather/", batch)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(len(response.json()), 5)
+        self.assertEqual(response.json()["created"], 5)
+        self.assertEqual(len(response.json()["results"]), 5)
         self.assertEqual(WeatherReading.objects.filter(station=self.mai).count(), 5)
+
+    def test_resending_a_batch_skips_readings_already_stored(self):
+        now = timezone.now()
+        batch = [calm(recorded_at=(now - timedelta(hours=h)).isoformat()) for h in range(3)]
+        self.post("/api/weather/", batch[:2])          # link dropped after two readings
+        response = self.post("/api/weather/", batch)   # gateway resends the whole buffer
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual((response.json()["created"], response.json()["skipped"]), (1, 2))
+        self.assertEqual(WeatherReading.objects.count(), 3)
+
+    def test_duplicates_inside_one_batch_are_stored_once(self):
+        stamp = timezone.now().isoformat()
+        response = self.post("/api/power/", [{"station": "MAI", "fuel_level_pct": 60, "recorded_at": stamp}] * 2)
+        self.assertEqual((response.json()["created"], response.json()["skipped"]), (1, 1))
+        self.assertEqual(PowerReading.objects.count(), 1)
+
+    def test_resending_a_single_reading_returns_the_stored_one(self):
+        reading = calm(recorded_at=timezone.now().isoformat())
+        first = self.post("/api/weather/", reading)
+        second = self.post("/api/weather/", reading)
+        self.assertEqual((first.status_code, second.status_code), (201, 200))
+        self.assertEqual(first.json()["id"], second.json()["id"])
+        self.assertEqual(WeatherReading.objects.count(), 1)
+
+    def test_station_code_is_case_insensitive(self):
+        response = self.post("/api/weather/", calm("mai"))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["station"], "MAI")
+
+    def test_sensor_token_cannot_read_or_change_other_data(self):
+        for url in ("/api/inventory/", "/api/incidents/", "/api/live/", "/api/weather/", "/api/stations/"):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url, **self.auth).status_code, 403)
+        response = self.client.post("/api/incidents/", {"station": "MAI", "title": "x", "description": "x"},
+                                    content_type="application/json", **self.auth)
+        self.assertEqual(response.status_code, 403)
+
+    def test_sensor_account_has_no_web_access(self):
+        self.login(self.mai_sensor)
+        self.assertEqual(self.client.get("/dashboard/").status_code, 403)
+        self.assertEqual(self.client.get("/telemetry/weather/").status_code, 403)
 
     def test_sensor_cannot_write_for_another_station(self):
         response = self.post("/api/weather/", calm("BHA"))
@@ -103,6 +145,33 @@ class ApiReadTests(PolarFixtures, TestCase):
         data = self.client.get("/api/weather/", {"station": "mai", "since": since}).json()
         self.assertEqual(data["count"], 1)
         self.assertEqual(data["results"][0]["temperature_c"], -10)
+
+    def test_invalid_since_is_a_400_not_a_500(self):
+        self.login(self.hq)
+        for value in ("2026-13-45T00:00:00", "yesterday"):
+            with self.subTest(since=value):
+                response = self.client.get("/api/weather/", {"since": value})
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("since", response.json())
+
+    def test_naive_since_is_read_in_local_time(self):
+        self.login(self.hq)
+        since = timezone.localtime(timezone.now() - timedelta(days=1)).replace(tzinfo=None).isoformat()
+        self.assertEqual(self.client.get("/api/weather/", {"station": "MAI", "since": since}).json()["count"], 1)
+
+    def test_station_staff_cannot_acknowledge_through_the_api(self):
+        self.login(self.bha_leader)
+        url = f"/api/incidents/{self.bha_incident.pk}/"
+        response = self.client.patch(url, {"status": "ACKNOWLEDGED"}, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        response = self.client.patch(url, {"status": "RESOLVED"}, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    def test_hq_can_acknowledge_through_the_api(self):
+        self.login(self.hq)
+        response = self.client.patch(f"/api/incidents/{self.bha_incident.pk}/", {"status": "ACKNOWLEDGED"},
+                                     content_type="application/json")
+        self.assertEqual(response.status_code, 200)
 
     def test_open_incidents_filter_and_patch(self):
         self.login(self.hq)

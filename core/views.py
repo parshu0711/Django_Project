@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db.models import F
 from django.shortcuts import render
 from django.utils import timezone
@@ -49,6 +50,8 @@ def _greeting():
 @login_required
 def dashboard(request):
     user = request.user
+    if user.is_sensor:
+        raise PermissionDenied("Sensor accounts can only upload telemetry through the API.")
     stations = Station.objects.all() if user.is_hq else Station.objects.filter(pk=user.station_id)
     ids = list(stations.values_list("pk", flat=True))
     open_incidents = Incident.objects.filter(station__in=ids).exclude(status=Incident.Status.RESOLVED)

@@ -63,7 +63,7 @@
           <div class="dropdown-menu mega-menu">
             <a class="mega-item" href="{% url 'personnel:member_list' %}"><span class="mega-icon bg-teal"><i class="bi bi-people"></i></span><span><strong>Members</strong><small>Who is on station, in the field or in transit</small></span></a>
             <a class="mega-item" href="{% url 'personnel:expedition_list' %}"><span class="mega-icon bg-violet"><i class="bi bi-flag"></i></span><span><strong>Expeditions</strong><small>ISEA batches and teams</small></span></a>
-            <a class="mega-item" href="{% url 'personnel:medical_list' %}"><span class="mega-icon bg-red"><i class="bi bi-heart-pulse"></i></span><span><strong>Medical checks</strong><small>Vitals and fitness for duty</small></span></a>
+            {% if user.can_view_medical %}<a class="mega-item" href="{% url 'personnel:medical_list' %}"><span class="mega-icon bg-red"><i class="bi bi-heart-pulse"></i></span><span><strong>Medical checks</strong><small>Vitals and fitness for duty</small></span></a>{% endif %}
           </div>
         </li>
 
@@ -160,7 +160,7 @@
 </main>
 <footer class="app-footer app-container">
   <span><i class="bi bi-snow2"></i> PolarOps · National Centre for Polar and Ocean Research</span>
-  <span>Ministry of Earth Sciences · All times IST</span>
+  <span>Ministry of Earth Sciences · All times {% now "T" %}</span>
 </footer>
 {% else %}
   {% block anonymous %}{% endblock %}

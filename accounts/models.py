@@ -12,6 +12,7 @@ class User(AbstractUser):
         ENGINEER = "ENGINEER", "Engineer / Technician"
         MEDICAL = "MEDICAL", "Medical Officer"
         LOGISTICS = "LOGISTICS", "Logistics Officer"
+        SENSOR = "SENSOR", "Sensor / gateway (API only)"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.SCIENTIST)
     station = models.ForeignKey(
@@ -37,3 +38,13 @@ class User(AbstractUser):
     @property
     def can_manage(self):
         return self.is_hq or self.role == self.Role.STATION_LEADER
+
+    @property
+    def is_sensor(self):
+        """Machine account for a station gateway: may only upload telemetry through the API."""
+        return self.role == self.Role.SENSOR and not self.is_superuser
+
+    @property
+    def can_view_medical(self):
+        """Medical records are confidential: HQ, station leaders and medical officers only."""
+        return self.is_hq or self.role in (self.Role.STATION_LEADER, self.Role.MEDICAL)

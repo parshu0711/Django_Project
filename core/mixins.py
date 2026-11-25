@@ -9,6 +9,7 @@ from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import FieldDoesNotExist, PermissionDenied
+from django.db import models
 from django.db.models import Q
 from django.http import HttpResponse
 from django.urls import NoReverseMatch, reverse
@@ -18,6 +19,22 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 from stations.models import Station
 
 from .templatetags.polar_tags import format_value, resolve
+
+BOOLEAN_FILTER_CHOICES = (("True", "Yes"), ("False", "No"))
+
+# A cell starting with one of these is run as a formula by Excel / LibreOffice.
+CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def csv_safe(text):
+    """Neutralise spreadsheet formula injection while keeping numbers such as -12.4 numeric."""
+    if not text or not text.startswith(CSV_FORMULA_PREFIXES):
+        return text
+    try:
+        float(text.replace(",", ""))
+        return text
+    except ValueError:
+        return "'" + text
 
 
 def model_has_field(model, name):
@@ -53,7 +70,17 @@ class StationScopedMixin(LoginRequiredMixin):
     station_field = "station"   # lookup path from the model to Station; None = not station specific
     url_base = None             # e.g. "operations:incident" -> incident_list / _create / _detail / _edit
     hq_only_write = False       # only HQ may create / edit
+    allowed_roles = None        # None = every role; otherwise only these roles (HQ is always allowed)
     title = ""
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_authenticated:
+            if getattr(user, "is_sensor", False):
+                raise PermissionDenied("Sensor accounts can only upload telemetry through the API.")
+            if self.allowed_roles is not None and not user.is_hq and user.role not in self.allowed_roles:
+                raise PermissionDenied("Your role does not have access to these records.")
+        return super().dispatch(request, *args, **kwargs)
 
     def scope(self, qs):
         user = self.request.user
@@ -112,10 +139,13 @@ class CrudListView(StationScopedMixin, ListView):
         filters = []
         for name in self.filter_fields:
             field = self.model._meta.get_field(name)
+            choices = field.choices
+            if not choices and isinstance(field, models.BooleanField):
+                choices = BOOLEAN_FILTER_CHOICES
             filters.append({
                 "name": name,
                 "label": capfirst(field.verbose_name),
-                "choices": field.choices,
+                "choices": choices or (),
                 "current": self.request.GET.get(name, ""),
             })
         return filters
@@ -148,7 +178,7 @@ class CrudListView(StationScopedMixin, ListView):
             writer = csv.writer(response)
             writer.writerow([label for label, _ in self.columns])
             for obj in self.object_list:
-                writer.writerow([format_value(resolve(obj, acc)[0]) for _, acc in self.columns])
+                writer.writerow([csv_safe(format_value(resolve(obj, acc)[0])) for _, acc in self.columns])
             return response
         return super().render_to_response(context, **kwargs)
 
@@ -167,8 +197,9 @@ class CrudFormMixin(StationScopedMixin, SuccessMessageMixin):
         user = self.request.user
         if not user.is_hq and user.station_id:
             initial.setdefault("station", user.station_id)
+        names = self.fields or list(self.get_form_class().base_fields)
         for key, value in self.request.GET.items():   # e.g. ?equipment=4 pre-selects the equipment
-            if key in (self.fields or ()):
+            if key in names:
                 initial[key] = value
         return initial
 
@@ -240,11 +271,15 @@ class CrudDetailView(StationScopedMixin, DetailView):
     def get_queryset(self):
         return self.scope(super().get_queryset())
 
+    def get_related(self):
+        """Related-record tables shown under the object; override to hide some per user."""
+        return self.related
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         obj = self.object
         blocks = []
-        for spec in self.related:
+        for spec in self.get_related():
             add_url = None
             if spec.get("add") and self.request.user.is_authenticated:
                 name, param = spec["add"]

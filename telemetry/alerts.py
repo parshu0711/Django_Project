@@ -1,10 +1,13 @@
 """Rules that turn incoming sensor readings into incidents automatically."""
+import logging
 from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
 
 from operations.models import Incident
+
+log = logging.getLogger(__name__)
 
 
 def _cfg(key, default):
@@ -35,7 +38,22 @@ def _when(reading):
     return timezone.localtime(reading.recorded_at).strftime("%d %b %H:%M")
 
 
+def is_current(reading):
+    """
+    Only readings from the last DEDUPE_HOURS raise alerts. Older ones arrive in a backlog
+    after a satellite outage: they are stored for the record, but the conditions they show
+    are already over, so they must not page HQ.
+    """
+    cutoff = timezone.now() - timedelta(hours=_cfg("DEDUPE_HOURS", 6))
+    if reading.recorded_at >= cutoff:
+        return True
+    log.info("Skipping alert rules for backfilled %s reading from %s", reading.station.code, _when(reading))
+    return False
+
+
 def check_weather(reading):
+    if not is_current(reading):
+        return []
     created = []
     wind_limit = _cfg("WIND_KMH", 100)
     if reading.wind_speed_kmh >= wind_limit:
@@ -69,6 +87,8 @@ def check_weather(reading):
 
 
 def check_power(reading):
+    if not is_current(reading):
+        return []
     created = []
     fuel_limit = _cfg("FUEL_PCT", 20)
     if reading.fuel_level_pct <= fuel_limit:

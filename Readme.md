@@ -63,18 +63,18 @@ Leaflet automatically, so the key is never required.
 | FR2 | Weather monitoring: temperature, wind, pressure, humidity, visibility | **Telemetry → Weather** and station charts |
 | FR3 | Power and fuel monitoring: diesel generators, solar, wind, load, fuel tank, battery | **Telemetry → Power & fuel** |
 | FR4 | Automatic alerts for blizzards, extreme cold, whiteout, low fuel and low battery | `telemetry/alerts.py` creates incidents automatically |
-| FR5 | Incident and emergency reporting, with HQ acknowledgement and resolution | **Incidents & alerts** |
-| FR6 | Email notification to HQ and the station leader for HIGH/CRITICAL incidents | `operations/signals.py` |
+| FR5 | Incident and emergency reporting, with HQ acknowledgement (only HQ can acknowledge) and resolution | **Incidents & alerts** |
+| FR6 | Email notification to HQ and the station leader for HIGH/CRITICAL incidents, and when one is escalated | `operations/signals.py` |
 | FR7 | Daily situation reports (SITREP) from stations to HQ | **Situation reports** |
 | FR8 | Expedition (ISEA) and crew management, including who is on station, on a field trip or in transit | **Members, Expeditions** |
-| FR9 | Medical monitoring of expedition members (vitals, fitness for duty) | **Medical checks** |
+| FR9 | Medical monitoring of expedition members (vitals, fitness for duty); visible only to HQ, station leaders and medical officers | **Medical checks** |
 | FR10 | Inventory of fuel, food, medical supplies and spares, with low-stock warnings | **Stock items** |
-| FR11 | Audit trail of every stock receipt and issue; stock can't go negative | **Stock movements** |
+| FR11 | Audit trail of every stock receipt and issue; stock can't go negative (checked under a row lock and by a database constraint), and the admin can't rewrite movements | **Stock movements** |
 | FR12 | Resupply logistics by ship, DROMLAN flight or helicopter | **Shipments** |
 | FR13 | Equipment register with service schedule and overdue warnings | **Equipment** |
 | FR14 | Maintenance work orders; completing one updates the equipment's service date | **Maintenance** |
 | FR15 | Research project and field-log tracking | **Research projects, Field logs** |
-| FR16 | Role-based access: HQ sees all stations, station staff see only their own | `core/mixins.py`, `core/api.py` |
+| FR16 | Role-based access: HQ sees all stations, station staff see only their own, sensor accounts can only upload telemetry | `core/mixins.py`, `core/api.py`, `core/permissions.py` |
 | FR17 | REST API with token authentication for sensors and third-party systems | `/api/` |
 | FR18 | CSV export of every list, for reports and offline analysis | **CSV** button on each list |
 | FR19 | Full data administration | Django admin at `/admin/` |
@@ -93,12 +93,19 @@ Leaflet automatically, so the key is never required.
 
 * **Low bandwidth:** pages are server-rendered and light. The dashboard polls one small JSON
   endpoint (`/api/live/`) every 60 s instead of reloading the page.
-* **Intermittent connectivity:** the API accepts bulk uploads (store-and-forward), alert emails
-  never block data entry if mail is down, and the dashboard keeps the last known values when the
-  link drops.
+* **Low bandwidth:** the dashboard stops polling while its browser tab is hidden.
+* **Intermittent connectivity:** the API accepts bulk uploads (store-and-forward). Uploads are
+  idempotent: a reading already stored for the same station and time is skipped, so a gateway can
+  resend its whole buffer after a dropped link. Alert emails are sent after the record is saved, with a
+  timeout (`EMAIL_TIMEOUT`), so a mail outage never blocks or hangs data entry. The dashboard keeps the
+  last known values when the link drops.
 * **Security:** login is required everywhere. Every page and API call is filtered by station, a
-  sensor token can only write data for its own station, and CSRF protection is on.
-* **Duplicate-alert control:** the same automatic alert isn't raised twice within 6 hours.
+  sensor token can only upload readings for its own station (and nothing else), the token endpoint is
+  rate limited, CSV exports are protected against spreadsheet formula injection, and CSRF protection is on.
+  The app refuses to start without a real `DJANGO_SECRET_KEY` when debug is off, and reports an error if
+  demo mode is left on.
+* **Duplicate-alert control:** the same automatic alert isn't raised twice within 6 hours, and readings
+  older than that (backfilled after an outage) are stored without raising alerts.
 * **Portability:** SQLite for development, PostgreSQL for production, switched with one setting.
 
 ---
@@ -118,7 +125,7 @@ Leaflet automatically, so the key is never required.
 
 | Django app | Models |
 |---|---|
-| `accounts` | `User` with role (HQ admin, station leader, scientist, engineer, medical, logistics) and station |
+| `accounts` | `User` with role (HQ admin, station leader, scientist, engineer, medical, logistics, sensor) and station |
 | `stations` | `Station`, `SitRep` |
 | `personnel` | `Expedition`, `Member`, `MedicalCheck` |
 | `inventory` | `Item`, `StockMovement`, `Shipment` |
@@ -132,7 +139,7 @@ Leaflet automatically, so the key is never required.
 ## 4. Setup (Windows PowerShell)
 
 ```powershell
-cd C:\Users\ASUS\Desktop\Django-Project
+cd <project folder>
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -151,22 +158,26 @@ On macOS or Linux, activate with `source .venv/bin/activate`.
 python manage.py test
 ```
 
-The suite (103 tests, a few seconds) runs against a throwaway test database, so your demo
+The suite (153 tests, a few seconds) runs against a throwaway test database, so your demo
 data is never touched. It uses a fast password hasher while testing. It covers:
 
 | Area | File |
 |---|---|
 | Landing page, dashboard, top navigation, every list/form page, CSV export | `core/tests/test_pages.py` |
-| Station scoping and HQ-only permissions | `core/tests/test_scoping.py` |
-| REST API: tokens, bulk uploads, filters, cross-station protection | `core/tests/test_api.py` |
-| Template helpers, `seed_demo`, `simulate_telemetry` | `core/tests/test_tags_and_commands.py` |
-| Automatic alert rules and de-duplication | `telemetry/tests.py` |
-| Incident emails, maintenance completion, service schedule | `operations/tests.py` |
-| Stock movements and the no-negative-stock rule | `inventory/tests.py` |
+| Station scoping, HQ-only permissions and medical confidentiality | `core/tests/test_scoping.py` |
+| REST API: tokens, idempotent bulk uploads, filters, sensor-only access, cross-station protection | `core/tests/test_api.py` |
+| Template helpers, `seed_demo`, `simulate_telemetry`, system checks | `core/tests/test_tags_and_commands.py` |
+| Automatic alert rules, de-duplication, backfilled readings, one reading per station and time | `telemetry/tests.py` |
+| Incident emails and escalation, HQ-only acknowledgement, maintenance completion, service schedule | `operations/tests.py` |
+| Stock movements, the no-negative-stock rule and the read-only admin audit trail | `inventory/tests.py` |
 | Login, logout and user roles | `accounts/tests.py` |
 | SITREP, medical and field-log authorship | `stations/tests.py` |
 
 Shared test fixtures live in `core/testing.py`.
+
+For development, `pip install -r requirements-dev.txt` adds `ruff` (lint: `ruff check .`) and
+`coverage`. GitHub Actions (`.github/workflows/ci.yml`) runs the lint, `manage.py check`, a
+migrations check and the tests on Python 3.10 and 3.12 for every push and pull request.
 
 ### Demo logins
 
@@ -194,8 +205,8 @@ This only works for the six seeded demo accounts above, and only while `DEMO_MOD
 to the value of `DJANGO_DEBUG`. **Set `DEMO_MODE=False` (or `DJANGO_DEBUG=False`) on any real deployment**,
 otherwise anyone who can reach the site could sign in as the HQ administrator.
 
-`seed_demo` also creates the sensor accounts `sensor_maitri` and `sensor_bharati` and prints
-their API tokens. Run `python manage.py seed_demo --reset` to reload clean demo data (this
+`seed_demo` also creates the sensor accounts `sensor_maitri` and `sensor_bharati` (role *Sensor*:
+no password, no web access, API uploads only) and prints their API tokens. Run `python manage.py seed_demo --reset` to reload clean demo data (this
 generates new tokens).
 
 ### Simulating a live sensor feed
@@ -236,9 +247,9 @@ Authenticate with a session (when logged in through the browser) or a token head
 |---|---|---|
 | GET | `/api/live/` | Latest weather, power and open-incident count per station |
 | GET | `/api/stations/` | Stations visible to the user |
-| GET, POST | `/api/weather/` | Filters: `?station=MAI&since=2026-11-19T00:00:00Z`. POST accepts one object or a list |
+| GET, POST | `/api/weather/` | Filters: `?station=MAI&since=2026-11-19T00:00:00Z` (an invalid `since` is a 400). POST accepts one object or a list |
 | GET, POST | `/api/power/` | Same filters and bulk upload |
-| GET, POST, PATCH | `/api/incidents/` | `?open=1` for unresolved incidents |
+| GET, POST, PATCH | `/api/incidents/` | `?open=1` for unresolved incidents. Only HQ can set `status` to `ACKNOWLEDGED` |
 | GET | `/api/inventory/` | `?low=1` for low-stock items |
 
 Example sensor upload:
@@ -246,8 +257,16 @@ Example sensor upload:
 ```bash
 curl -X POST http://127.0.0.1:8000/api/weather/ \
   -H "Authorization: Token <sensor token>" -H "Content-Type: application/json" \
-  -d '[{"station":"BHA","temperature_c":-12.4,"wind_speed_kmh":64,"pressure_hpa":972}]'
+  -d '[{"station":"BHA","recorded_at":"2026-11-20T06:00:00Z","temperature_c":-12.4,"wind_speed_kmh":64,"pressure_hpa":972}]'
 ```
+
+A list upload answers `201` with `{"created": n, "skipped": m, "results": [...]}`. Readings whose
+station and `recorded_at` are already stored are skipped, so always send `recorded_at` from the gateway
+and resend the whole buffer after a failed upload. Station codes are case-insensitive.
+
+Sensor accounts (role *Sensor*) can only `POST` to `/api/weather/` and `/api/power/`; every other
+endpoint answers 403. `POST /api/auth/token/` is limited to `API_RATE_TOKEN` (default 10/min) per
+client, and every user to `API_RATE_USER` (default 600/min).
 
 ## 7. Automatic alert rules
 
@@ -261,16 +280,23 @@ Thresholds are set in `.env`:
 | Fuel ≤ `ALERT_FUEL_PCT` | 20 % | Low fuel reserve (CRITICAL at half the limit) |
 | Battery ≤ `ALERT_BATTERY_PCT` | 15 % | Battery bank critically low |
 
+The dashboard and station charts draw these same thresholds as dashed lines. Readings recorded more than
+6 hours ago (a backlog uploaded after an outage) are stored but don't raise alerts.
+
 ---
 
 ## 8. Production checklist
 
-* Set `DJANGO_DEBUG=False`, a long random `DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS`.
-* Make sure `DEMO_MODE` is off (it is when `DJANGO_DEBUG=False`, unless you set it), and delete or
-  re-password the demo accounts.
+* Set `DJANGO_DEBUG=False`, a long random `DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS` (plus
+  `DJANGO_CSRF_TRUSTED_ORIGINS` for your HTTPS origin). The app won't start with the placeholder key.
+* Make sure `DEMO_MODE` is off (it is when `DJANGO_DEBUG=False`, unless you set it; `manage.py check`
+  reports `polarops.E001` otherwise), and delete or re-password the demo accounts.
+* Run `python manage.py check --deploy` and fix what it reports.
 * Use PostgreSQL and run `python manage.py collectstatic`.
-* Serve with gunicorn or uvicorn on Linux (waitress on Windows) behind nginx with HTTPS.
-* Set the SMTP settings in `.env` so alert emails are actually delivered.
+* Serve with gunicorn on Linux (waitress on Windows; both are listed, commented out, in
+  `requirements.txt`) behind nginx with HTTPS. Set `BEHIND_HTTPS_PROXY=True` when nginx terminates TLS,
+  and raise `SECURE_HSTS_SECONDS` once HTTPS works.
+* Set the SMTP settings in `.env` so alert emails are actually delivered, and set `LOG_FILE` to keep a log.
 * For stations with very limited bandwidth, host the CDN assets locally under `static/`.
 
 ## 9. Possible extensions
