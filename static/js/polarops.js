@@ -174,12 +174,17 @@ function polarLeafletMap(el, points) {
   el.innerHTML = "";
   el.removeAttribute("style");
   const map = L.map(el, { scrollWheelZoom: false, worldCopyJump: true }).setView([-70, 44], 3);
-  // CARTO basemap (OpenStreetMap data). tile.openstreetmap.org blocks app traffic, so it is not used directly.
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-    maxZoom: 12,
-    subdomains: "abcd",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(map);
+  // Esri basemaps need no API key (CARTO's tiles now do). Satellite by default, topographic as an option.
+  const esri = (service, source) => L.tileLayer(
+    `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/{z}/{y}/{x}`,
+    { maxZoom: 12, attribution: `Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; ${source}` },
+  );
+  const layers = {
+    Satellite: esri("World_Imagery", "Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community"),
+    Map: esri("World_Topo_Map", "Sources: Esri, HERE, Garmin, USGS, NGA and other contributors"),
+  };
+  layers.Satellite.addTo(map);
+  L.control.layers(layers, null, { position: "topright" }).addTo(map);
   const bounds = [];
   points.forEach(p => {
     const marker = L.circleMarker([p.lat, p.lng], {

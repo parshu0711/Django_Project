@@ -16,7 +16,7 @@ stores and resupply, equipment maintenance and research projects.
 | **Python** | 3.10 or newer (tested on 3.14) | Runs Django |
 | **pip** + **venv** | ships with Python | Installs the packages below |
 | **Web browser** | any modern browser | The user interface |
-| **Internet access** (development) | - | Bootstrap, Chart.js and Leaflet load from a CDN; map tiles come from OpenStreetMap |
+| **Internet access** (development) | - | Bootstrap, Chart.js and Leaflet load from a CDN; map tiles come from Esri (no key needed) |
 | PostgreSQL *(optional)* | 14 or newer | Recommended production database (SQLite is used by default) |
 
 You don't need API keys, paid services or Docker.
@@ -38,13 +38,16 @@ Bootstrap 5.3 (layout), Bootstrap Icons, Chart.js 4 (telemetry charts), Leaflet 
 ### Station maps: Google Maps (optional)
 
 Set `GOOGLE_MAPS_API_KEY` in `.env` to show the station maps (landing page and dashboard) with Google
-satellite imagery. Without a key, or if Google rejects it, the maps fall back to OpenStreetMap through
-Leaflet automatically, so the key is never required.
+satellite imagery. Without a key, or if Google rejects it, the maps fall back to Leaflet with Esri
+basemap tiles (satellite, with a switch to a topographic map), which need no key, so the Google key is
+never required.
 
 * The key is sent to the browser, which is normal for the Maps JavaScript API. In Google Cloud Console,
   restrict it to your site's HTTP referrers and to the Maps JavaScript API only.
 * Markers use Google's `DEMO_MAP_ID`, which is meant for development. For production, create your own
   Map ID and replace it in `static/js/polarops.js`.
+* The Esri fallback tiles are free to use with attribution (shown on the map). For a commercial or
+  high-traffic deployment, check Esri's terms of use or set up the Google key instead.
 
 ### Hardware (for a real deployment)
 
@@ -158,7 +161,7 @@ On macOS or Linux, activate with `source .venv/bin/activate`.
 python manage.py test
 ```
 
-The suite (153 tests, a few seconds) runs against a throwaway test database, so your demo
+The suite (154 tests, a few seconds) runs against a throwaway test database, so your demo
 data is never touched. It uses a fast password hasher while testing. It covers:
 
 | Area | File |

@@ -59,10 +59,18 @@ class GoogleMapsKeyTests(PolarFixtures, TestCase):
         self.assertNotContains(self.client.get(reverse("core:landing")), 'alert(1);//"')
 
     @override_settings(GOOGLE_MAPS_API_KEY="")
-    def test_no_key_means_openstreetmap_fallback(self):
+    def test_no_key_means_leaflet_fallback(self):
         response = self.client.get(reverse("core:landing"))
         self.assertNotContains(response, "POLAR_GMAPS_KEY")
         self.assertContains(response, "leaflet.js")
+
+    def test_fallback_tiles_need_no_api_key(self):
+        # CARTO basemaps started requiring an API key ("API KEY REQUIRED" watermark), so the
+        # fallback must use a key-free tile server.
+        from django.conf import settings
+        script = (settings.BASE_DIR / "static" / "js" / "polarops.js").read_text(encoding="utf-8")
+        self.assertNotIn("basemaps.cartocdn.com", script)
+        self.assertIn("server.arcgisonline.com", script)
 
 
 class DashboardTests(PolarFixtures, TestCase):
