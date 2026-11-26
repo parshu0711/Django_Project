@@ -368,6 +368,13 @@
 .access-form { display: grid; gap: 1.1rem; }
 .access-form .btn { width: 100%; padding: 1.05rem; margin-top: .35rem; }
 .login-error { margin-bottom: 1.25rem; }
+.access-card.wide { width: min(560px, 100%); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem 1rem; }
+.field-row > * { min-width: 0; }
+.switch-access { margin-top: 1.25rem; color: var(--ink-60); font-size: .92rem; }
+.switch-access a { color: var(--ink); font-weight: 600; border-bottom: 1px solid var(--glacier); }
+.switch-access a:hover { color: var(--glacier); }
+@media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
 .demo-login { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--ink); }
 .demo-login-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: .85rem; }
 .demo-login-head span { font: 600 .95rem/1.2 var(--font-display); letter-spacing: -.02em; }

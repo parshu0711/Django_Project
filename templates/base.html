@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css">
-  <link rel="stylesheet" href="{% static 'css/polarops.css' %}?v=10">
+  <link rel="stylesheet" href="{% static 'css/polarops.css' %}?v=12">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -118,6 +118,7 @@
             {% endfor %}
           </form>
           {% endif %}
+          {% if user.is_hq %}<a class="user-link" href="{% url 'accounts:requests' %}"><i class="ph-light ph-user-plus"></i>Account requests{% if nav_pending_signups %}<span class="count">{{ nav_pending_signups }}</span>{% endif %}</a>{% endif %}
           <a class="user-link" href="{% url 'core:landing' %}"><i class="ph-light ph-house"></i>Home page</a>
           <a class="user-link" href="{% url 'api-root' %}"><i class="ph-light ph-plug"></i>REST API</a>
           {% if user.is_staff %}<a class="user-link" href="{% url 'admin:index' %}"><i class="ph-light ph-shield-check"></i>Admin panel</a>{% endif %}

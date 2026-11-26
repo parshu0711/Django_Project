@@ -1,0 +1,51 @@
+{% extends "base.html" %}{% load static polar_tags %}
+{% block title %}Request access{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=6">{% endblock %}
+{% block body %}
+<div class="login po">
+  {% include "accounts/_access_art.html" with art_caption="Request access — reviewed by NCPOR HQ" %}
+
+  <section class="login-side">
+    <div class="access-card wide">
+      <span class="eyebrow mono">Access / 02</span>
+      <h1 data-fx="split">Request access</h1>
+      <p class="sub">Tell us who you are and where you work. NCPOR HQ approves every account before its first sign-in.</p>
+
+      {% if form.non_field_errors %}
+        <div class="notice notice-danger login-error" role="alert"><span class="notice-kicker">Check</span><span>{{ form.non_field_errors|join:" " }}</span></div>
+      {% endif %}
+
+      <form method="post" class="access-form" novalidate>{% csrf_token %}
+        <div class="field-row">
+          {% include "accounts/_field.html" with field=form.first_name %}
+          {% include "accounts/_field.html" with field=form.last_name %}
+        </div>
+        <div class="field-row">
+          {% include "accounts/_field.html" with field=form.username %}
+          {% include "accounts/_field.html" with field=form.email %}
+        </div>
+        <div class="field-row">
+          {% include "accounts/_field.html" with field=form.station %}
+          {% include "accounts/_field.html" with field=form.role %}
+        </div>
+        {% include "accounts/_field.html" with field=form.phone %}
+        <div class="field-row">
+          {% include "accounts/_field.html" with field=form.password1 %}
+          {% include "accounts/_field.html" with field=form.password2 %}
+        </div>
+        <button class="btn btn-ink" type="submit"><span class="spark" aria-hidden="true"></span>Send request<i class="ph-light ph-arrow-right"></i></button>
+      </form>
+      <p class="switch-access">Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a></p>
+      <p class="mono faint" style="margin-top: 1.5rem;">HQ administrator and sensor accounts are created by NCPOR HQ, not through this form.</p>
+    </div>
+  </section>
+</div>
+{% station_points as login_points %}
+{{ login_points|json_script:"map-data" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/globe.js' %}?v=3"></script>
+<script>
+  PolarGlobe.mount(document.getElementById("login-globe"), JSON.parse(document.getElementById("map-data").textContent), { hud: true });
+</script>
+{% endblock %}

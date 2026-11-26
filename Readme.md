@@ -175,7 +175,7 @@ On macOS or Linux, activate with `source .venv/bin/activate`.
 python manage.py test
 ```
 
-The suite (154 tests, a few seconds) runs against a throwaway test database, so your demo
+The suite (167 tests, a few seconds) runs against a throwaway test database, so your demo
 data is never touched. It uses a fast password hasher while testing. It covers:
 
 | Area | File |
@@ -225,6 +225,22 @@ otherwise anyone who can reach the site could sign in as the HQ administrator.
 `seed_demo` also creates the sensor accounts `sensor_maitri` and `sensor_bharati` (role *Sensor*:
 no password, no web access, API uploads only) and prints their API tokens. Run `python manage.py seed_demo --reset` to reload clean demo data (this
 generates new tokens).
+
+### New accounts (sign-up with HQ approval)
+
+Anyone can ask for an account from **Request access** on the sign-in page (`/accounts/signup/`).
+They give their name, username, email, station and the role they need, plus a password.
+
+* The account is created **inactive** and marked *pending approval*. It cannot sign in yet; trying
+  with the right password shows "waiting for approval by NCPOR HQ" (a wrong password shows the
+  normal error, so the page never reveals which usernames exist).
+* Only station roles can be requested (station leader, scientist, engineer, medical, logistics).
+  *HQ administrator* and *Sensor* accounts are never self-service, and decommissioned stations are
+  not offered.
+* HQ administrators get an email and see the count on the dashboard and in the account menu
+  (**Account requests**, `/accounts/requests/`). There they can change the role or station, then
+  **Approve** (activates the account and emails the person) or **Reject** (deletes the request).
+  The admin panel has the same *Approve selected sign-up requests* action.
 
 ### Simulating a live sensor feed
 

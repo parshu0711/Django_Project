@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <nav class="crumb mono" aria-label="Breadcrumb"><a href="{% url 'core:dashboard' %}">Deck</a><span class="sep">/</span><span>Account requests</span></nav>
+    <h1 class="page-title" data-fx="split">Account requests</h1>
+    <p class="page-sub">People who asked for access through the sign-up page. Check the role and station, then approve or reject.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost btn-sm" href="{% url 'admin:accounts_user_changelist' %}?pending_approval__exact=1"><i class="ph-light ph-shield-check"></i>Open in admin</a>
+  </div>
+</header>
+
+<section class="panel">
+  {% if pending %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Person</th><th scope="col">Requested</th><th scope="col">Since</th><th scope="col">Approve as</th><th scope="col"><span class="sr-only">Reject</span></th></tr></thead>
+      <tbody>
+        {% for u in pending %}
+        <tr>
+          <td>
+            <strong>{{ u.get_full_name|default:u.username }}</strong>
+            <span class="mono muted" style="display:block; margin-top:.25rem;">{{ u.username }} · {{ u.email }}{% if u.phone %} · {{ u.phone }}{% endif %}</span>
+          </td>
+          <td><span class="tag tag-info">{{ u.get_role_display }}</span><span class="mono muted" style="display:block; margin-top:.35rem;">{{ u.station|default:"No station" }}</span></td>
+          <td class="num">{{ u.date_joined|date:"d M Y, H:i" }}</td>
+          <td>
+            <form method="post" action="{% url 'accounts:approve' u.pk %}" class="approve-form">{% csrf_token %}
+              <label class="sr-only" for="role-{{ u.pk }}">Role</label>
+              <select class="field-select" id="role-{{ u.pk }}" name="role">
+                {% for value, label in role_choices %}<option value="{{ value }}" {% if value == u.role %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              <label class="sr-only" for="station-{{ u.pk }}">Station</label>
+              <select class="field-select" id="station-{{ u.pk }}" name="station">
+                {% for s in stations %}<option value="{{ s.pk }}" {% if s.pk == u.station_id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+              </select>
+              <button class="btn btn-ink btn-sm" type="submit"><i class="ph-light ph-check"></i>Approve</button>
+            </form>
+          </td>
+          <td class="act">
+            <form method="post" action="{% url 'accounts:reject' u.pk %}" onsubmit="return confirm('Reject and delete this account request?');">{% csrf_token %}
+              <button class="btn btn-ghost btn-sm" type="submit"><i class="ph-light ph-x"></i>Reject</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="26" cy="22" r="10"/><path d="M8 52c2-10 9-16 18-16s16 6 18 16"/><path d="M48 18v16M40 26h16"/></svg>
+    <strong>No requests waiting</strong>
+    <span class="mono">New sign-ups appear here for approval</span>
+  </div>
+  {% endif %}
+  <div class="panel-foot"><span class="mono muted"><span class="num">{{ pending|length }}</span> waiting</span></div>
+</section>
+{% endblock %}

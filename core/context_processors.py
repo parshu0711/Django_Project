@@ -23,7 +23,12 @@ def navigation(request):
     qs = Incident.objects.exclude(status=Incident.Status.RESOLVED)
     if not user.is_hq:
         qs = qs.filter(station_id=user.station_id)
-    return {"nav_open_incidents": qs.count()}
+    context = {"nav_open_incidents": qs.count()}
+    if user.is_hq:
+        from django.contrib.auth import get_user_model
+
+        context["nav_pending_signups"] = get_user_model().objects.filter(pending_approval=True).count()
+    return context
 
 
 def platform(request):

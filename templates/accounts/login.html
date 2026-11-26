@@ -1,31 +1,21 @@
 {% extends "base.html" %}{% load static polar_tags %}
 {% block title %}Sign in{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=5">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=6">{% endblock %}
 {% block body %}
 <div class="login po">
-  <section class="login-art" aria-label="PolarOps">
-    <div class="top">
-      <a href="{% url 'core:landing' %}" class="po-brand" aria-label="PolarOps home">
-        <span class="seal" aria-hidden="true"><span>PO</span></span>
-        <span><span class="po-brand-name">PolarOps</span><span class="po-brand-sub mono">Indian Antarctic Stations</span></span>
-      </a>
-      <a class="back mono" href="{% url 'core:landing' %}"><i class="ph-light ph-arrow-left"></i>Back to home</a>
-    </div>
-    <div class="po-globe" id="login-globe">
-      <div class="frame" aria-hidden="true"><span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span></div>
-    </div>
-    <div class="foot mono">
-      <span data-fx="decrypt" data-delay="300">Secure access — NCPOR / station accounts</span>
-      <span>Goa <b data-clock data-tz="Asia/Kolkata">--:--</b> · UTC <b data-clock data-tz="UTC">--:--</b></span>
-    </div>
-  </section>
+  {% include "accounts/_access_art.html" %}
 
   <section class="login-side">
     <div class="access-card">
       <span class="eyebrow mono">Access / 01</span>
       <h1 data-fx="split">Sign in</h1>
       <p class="sub">Use your NCPOR or station account.</p>
-      {% if form.errors %}
+      {% for message in messages %}
+        <div class="notice notice-{{ message.tags|default:'info' }} login-error" role="status"><span class="notice-kicker">{{ message.level_tag|default:"note" }}</span><span>{{ message }}</span></div>
+      {% endfor %}
+      {% if form.pending %}
+        <div class="notice notice-warning login-error" role="alert"><span class="notice-kicker">Pending</span><span>Your account request is waiting for approval by NCPOR HQ. You'll get an email when it's ready.</span></div>
+      {% elif form.errors %}
         <div class="notice notice-danger login-error" role="alert"><span class="notice-kicker">Denied</span><span>Incorrect username or password.</span></div>
       {% endif %}
       <form method="post" class="access-form">{% csrf_token %}
@@ -40,6 +30,7 @@
         </div>
         <button class="btn btn-ink" type="submit" data-fx="magnet" data-strength=".12"><span class="spark" aria-hidden="true"></span>Sign in<i class="ph-light ph-arrow-right"></i></button>
       </form>
+      <p class="switch-access">No account yet? <a href="{% url 'accounts:signup' %}">Request access</a></p>
 
       {% if DEMO_MODE %}
         <div class="demo-login">

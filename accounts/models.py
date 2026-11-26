@@ -24,6 +24,14 @@ class User(AbstractUser):
         help_text="Leave empty for HQ staff who oversee all stations.",
     )
     phone = models.CharField("phone / sat-phone", max_length=30, blank=True)
+    pending_approval = models.BooleanField(
+        default=False,
+        help_text="Created through the sign-up page and waiting for HQ to approve it. Stays inactive until then.",
+    )
+
+    # Roles a person may request on the sign-up page. HQ administrator and sensor accounts are
+    # only ever created by HQ, so they can't be self-assigned.
+    SIGNUP_ROLES = (Role.STATION_LEADER, Role.SCIENTIST, Role.ENGINEER, Role.MEDICAL, Role.LOGISTICS)
 
     class Meta:
         ordering = ["first_name", "last_name"]

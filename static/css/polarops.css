@@ -321,6 +321,9 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.55; }
 .user-link { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .6rem .7rem; border: 0; background: none; color: var(--ink); text-align: left; font-size: .88rem; }
 .user-link i { font-size: 1.05rem; color: var(--ink-60); }
 .user-link:hover { background: var(--paper); color: var(--ink); }
+.user-link .count { margin-left: auto; padding: .2rem .4rem; background: var(--signal); color: #fff; font: 600 .62rem/1 var(--font-mono); }
+.approve-form { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.approve-form .field-select { width: auto; min-height: 36px; padding-block: .4rem; font-size: .85rem; }
 .user-link.danger { color: var(--signal-deep); }
 .user-link.danger i { color: var(--signal-deep); }
 .menu-section { display: flex; align-items: center; justify-content: space-between; padding: .7rem .7rem .4rem; font: 500 .6rem/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); }
@@ -337,8 +340,9 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.55; }
 .avatar.sm { width: 28px; height: 28px; font-size: .72rem; }
 .menu-btn { display: none; width: 40px; height: 40px; border: 1px solid var(--hair-strong); background: none; color: var(--ink); font-size: 1.2rem; }
 
+@media (max-width: 1400px) { .scope { display: none; } }   /* the full bar needs ~1390px with the scope chip */
 @media (max-width: 1240px) {
-  .scope, .user-btn .name, .brand-sub { display: none; }
+  .user-btn .name, .brand-sub { display: none; }
   .nav-btn, .nav-link { padding: 0 .5rem; }
   .nav-btn::after, .nav-link::after { left: .5rem; right: .5rem; }
 }

@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -129,3 +130,141 @@ class DemoAccountSwitchTests(PolarFixtures, TestCase):
         self.assertNotContains(self.client.get(reverse("core:dashboard")), "Switch demo account")
         self.client.logout()
         self.assertNotContains(self.client.get(reverse("accounts:login")), "Or try a demo account")
+
+
+class SignUpTests(PolarFixtures, TestCase):
+    """Self sign-up creates an inactive account that HQ approves or rejects."""
+
+    def data(self, **extra):
+        return {
+            "first_name": "Meera", "last_name": "Iyer", "username": "meera", "email": "meera@example.org",
+            "phone": "", "station": self.mai.pk, "role": "SCIENTIST",
+            "password1": "Glacier-Core-2026!", "password2": "Glacier-Core-2026!", **extra,
+        }
+
+    def signup(self, **extra):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse("accounts:signup"), self.data(**extra))
+
+    def test_page_offers_only_station_roles_and_open_stations(self):
+        form = self.client.get(reverse("accounts:signup")).context["form"]
+        roles = [value for value, _ in form.fields["role"].choices]
+        self.assertNotIn("HQ_ADMIN", roles)
+        self.assertNotIn("SENSOR", roles)
+        self.assertIn("STATION_LEADER", roles)
+        self.assertEqual(set(form.fields["station"].queryset), {self.mai, self.bha})   # not decommissioned DKG
+
+    def test_signup_creates_a_pending_inactive_account_and_tells_hq(self):
+        response = self.signup()
+        self.assertRedirects(response, reverse("accounts:login"), fetch_redirect_response=False)
+        user = get_user_model().objects.get(username="meera")
+        self.assertFalse(user.is_active)
+        self.assertTrue(user.pending_approval)
+        self.assertEqual((user.station, user.role), (self.mai, "SCIENTIST"))
+        self.assertTrue(user.check_password("Glacier-Core-2026!"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Account request: Meera Iyer", mail.outbox[0].subject)
+        self.assertIn("hq@example.org", mail.outbox[0].to)
+        self.assertContains(self.client.get(reverse("accounts:login")), "has been sent to NCPOR HQ")
+
+    def test_cannot_request_hq_or_sensor_roles(self):
+        for role in ("HQ_ADMIN", "SENSOR"):
+            with self.subTest(role=role):
+                response = self.signup(role=role)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("role", response.context["form"].errors)
+        self.assertFalse(get_user_model().objects.filter(username="meera").exists())
+
+    def test_duplicate_username_or_email_is_rejected(self):
+        self.assertIn("username", self.signup(username="HQ").context["form"].errors)          # case-insensitive
+        self.assertIn("email", self.signup(email="HQ@example.org").context["form"].errors)    # case-insensitive
+
+    def test_weak_or_mismatched_passwords_are_rejected(self):
+        self.assertIn("password2", self.signup(password2="different-pass-99").context["form"].errors)
+        self.assertIn("password2", self.signup(password1="password", password2="password").context["form"].errors)
+
+    def test_pending_account_cannot_sign_in_and_is_told_why(self):
+        self.signup()
+        response = self.client.post(reverse("accounts:login"), {"username": "meera", "password": "Glacier-Core-2026!"})
+        self.assertContains(response, "waiting for approval by NCPOR HQ")
+        self.assertNotIn("_auth_user_id", self.client.session)
+        # a wrong password never reveals that the account exists
+        response = self.client.post(reverse("accounts:login"), {"username": "meera", "password": "wrong-one-123"})
+        self.assertContains(response, "Incorrect username or password")
+        self.assertNotContains(response, "waiting for approval")
+
+    def test_signed_in_users_skip_the_signup_page(self):
+        self.login(self.mai_leader)
+        self.assertRedirects(self.client.get(reverse("accounts:signup")), reverse("core:dashboard"))
+
+    def test_only_hq_can_review_requests(self):
+        self.signup()
+        url = reverse("accounts:requests")
+        self.assertRedirects(self.client.get(url), f"{reverse('accounts:login')}?next={url}")
+        self.login(self.mai_leader)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.login(self.hq)
+        response = self.client.get(url)
+        self.assertContains(response, "Meera Iyer")
+        self.assertEqual(response.context["nav_pending_signups"], 1)
+        self.assertContains(self.client.get(reverse("core:dashboard")), "1 account request waiting")
+
+    def test_approving_activates_with_the_role_and_station_hq_chose(self):
+        self.signup()
+        user = get_user_model().objects.get(username="meera")
+        self.login(self.hq)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse("accounts:approve", args=[user.pk]),
+                                        {"role": "ENGINEER", "station": self.bha.pk})
+        self.assertRedirects(response, reverse("accounts:requests"))
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.pending_approval)
+        self.assertEqual((user.role, user.station), ("ENGINEER", self.bha))
+        self.assertEqual(mail.outbox[-1].to, ["meera@example.org"])
+        self.client.logout()
+        response = self.client.post(reverse("accounts:login"), {"username": "meera", "password": "Glacier-Core-2026!"})
+        self.assertRedirects(response, reverse("core:dashboard"))
+
+    def test_approval_cannot_grant_hq(self):
+        self.signup()
+        user = get_user_model().objects.get(username="meera")
+        self.login(self.hq)
+        self.client.post(reverse("accounts:approve", args=[user.pk]), {"role": "HQ_ADMIN", "station": self.mai.pk})
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertTrue(user.pending_approval)
+
+    def test_rejecting_deletes_only_pending_requests(self):
+        self.signup()
+        user = get_user_model().objects.get(username="meera")
+        self.login(self.hq)
+        self.assertEqual(self.client.get(reverse("accounts:reject", args=[user.pk])).status_code, 405)   # POST only
+        self.client.post(reverse("accounts:reject", args=[user.pk]))
+        self.assertFalse(get_user_model().objects.filter(pk=user.pk).exists())
+        # a real, active account can't be deleted through this page
+        self.assertEqual(self.client.post(reverse("accounts:reject", args=[self.mai_scientist.pk])).status_code, 404)
+        self.assertTrue(get_user_model().objects.filter(pk=self.mai_scientist.pk).exists())
+
+    def test_station_staff_cannot_approve(self):
+        self.signup()
+        user = get_user_model().objects.get(username="meera")
+        self.login(self.mai_leader)
+        response = self.client.post(reverse("accounts:approve", args=[user.pk]),
+                                    {"role": "SCIENTIST", "station": self.mai.pk})
+        self.assertEqual(response.status_code, 403)
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+
+    def test_admin_action_approves(self):
+        from unittest import mock
+
+        from django.contrib import admin
+
+        self.signup()
+        model_admin = admin.site._registry[get_user_model()]
+        with mock.patch.object(model_admin, "message_user"):
+            model_admin.approve_signups(mock.Mock(user=self.hq), get_user_model().objects.filter(username="meera"))
+        user = get_user_model().objects.get(username="meera")
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.pending_approval)

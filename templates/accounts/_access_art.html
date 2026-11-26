@@ -1,0 +1,17 @@
+{# Left half of the sign-in and sign-up pages: brand, wireframe globe, clocks. #}
+<section class="login-art" aria-label="PolarOps">
+  <div class="top">
+    <a href="{% url 'core:landing' %}" class="po-brand" aria-label="PolarOps home">
+      <span class="seal" aria-hidden="true"><span>PO</span></span>
+      <span><span class="po-brand-name">PolarOps</span><span class="po-brand-sub mono">Indian Antarctic Stations</span></span>
+    </a>
+    <a class="back mono" href="{% url 'core:landing' %}"><i class="ph-light ph-arrow-left"></i>Back to home</a>
+  </div>
+  <div class="po-globe" id="login-globe">
+    <div class="frame" aria-hidden="true"><span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span></div>
+  </div>
+  <div class="foot mono">
+    <span data-fx="decrypt" data-delay="300">{{ art_caption|default:"Secure access — NCPOR / station accounts" }}</span>
+    <span>Goa <b data-clock data-tz="Asia/Kolkata">--:--</b> · UTC <b data-clock data-tz="UTC">--:--</b></span>
+  </div>
+</section>

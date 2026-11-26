@@ -3,7 +3,7 @@
 {% block body_class %}landing{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=5">
+<link rel="stylesheet" href="{% static 'css/landing.css' %}?v=6">
 {% endblock %}
 
 {% block body %}
@@ -422,6 +422,7 @@
           <a class="po-btn" data-fx="magnet" href="{% url 'core:dashboard' %}"><span class="spark" aria-hidden="true"></span>Open dashboard <i class="ph-light ph-arrow-right"></i></a>
         {% else %}
           <a class="po-btn" data-fx="magnet" href="{% url 'accounts:login' %}"><span class="spark" aria-hidden="true"></span>Sign in <i class="ph-light ph-arrow-right"></i></a>
+          <a class="po-link-arrow" style="margin-left: 1.5rem;" href="{% url 'accounts:signup' %}">Request access <span class="chev" aria-hidden="true"><b></b><b></b><b></b></span></a>
         {% endif %}
       </div>
     </div>
